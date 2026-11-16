@@ -1,0 +1,8 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../app/app_state.dart';
+import '../theme/app_theme.dart';
+class BottomNavigation extends StatelessWidget {
+ const BottomNavigation({super.key});
+ static const items=[(label:'Markas',icon:Icons.apartment_rounded),(label:'Peta',icon:Icons.public_rounded),(label:'Kontrak',icon:Icons.assignment_rounded),(label:'Armada',icon:Icons.local_shipping_rounded),(label:'Staf',icon:Icons.groups_rounded),(label:'Lainnya',icon:Icons.grid_view_rounded),(label:'Chat',icon:Icons.chat_bubble_rounded)];
+ @override Widget build(BuildContext context){final s=context.watch<AppState>();return Container(padding:const EdgeInsets.fromLTRB(3,8,3,9),decoration:const BoxDecoration(color:AppColors.surface,border:Border(top:BorderSide(color:AppColors.border))),child:Row(children:List.generate(items.length,(i){final active=s.selectedTab==i;final item=items[i];return Expanded(child:InkWell(onTap:()=>s.setTab(i),child:Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Column(mainAxisSize:MainAxisSize.min,children:[Stack(clipBehavior:Clip.none,children:[Icon(item.icon,size:21,color:active?AppColors.emerald:AppColors.textSecondary),if(i==1&&s.activeVehicles>0)Positioned(right:-4,top:-3,child:Container(width:8,height:8,decoration:const BoxDecoration(color:AppColors.emerald,shape:BoxShape.circle)))]),const SizedBox(height:4),Text(item.label,style:TextStyle(fontSize:9,color:active?AppColors.emerald:AppColors.textSecondary,fontWeight:active?FontWeight.w800:FontWeight.w500))]))));})));}}
