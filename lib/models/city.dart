@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 class CityNode {
- const CityNode({required this.id,required this.name,required this.countryCode,required this.countryName,required this.region,required this.mapX,required this.mapY,required this.latitude,required this.longitude,required this.unlockCost,required this.isStarterHub,required this.tier});
+ const CityNode({required this.id,required this.name,required this.countryCode,required this.countryName,required this.region,required this.mapX,required this.mapY,required this.latitude,required this.longitude,required this.unlockCost,required this.isStarterHub,required this.tier,required this.hasPort,required this.hasAirport});
  final String id,name,countryCode,countryName,region;
  final double mapX,mapY,latitude,longitude,unlockCost;
- final bool isStarterHub; final int tier;
+ final bool isStarterHub,hasPort,hasAirport; final int tier;
  static double distanceKmBetween(double a,double b,double c,double d){
   const radius=6371.0088; final p1=a*math.pi/180,p2=c*math.pi/180,dp=(c-a)*math.pi/180,dl=(d-b)*math.pi/180;
   final h=math.pow(math.sin(dp/2),2)+math.cos(p1)*math.cos(p2)*math.pow(math.sin(dl/2),2);
@@ -12,8 +12,10 @@ class CityNode {
 }
 CityNode _city(String name,String code,String country,String region,double lat,double lon,int tier,bool starter){
  final id=name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'),'_').replaceAll(RegExp(r'^_|_$'),'');
- return CityNode(id:id,name:name,countryCode:code,countryName:country,region:region,mapX:(lon+180)/360,mapY:(90-lat)/180,latitude:lat,longitude:lon,unlockCost:starter?0:tier==2?26000:12000,isStarterHub:starter,tier:tier);
+ return CityNode(id:id,name:name,countryCode:code,countryName:country,region:region,mapX:(lon+180)/360,mapY:(90-lat)/180,latitude:lat,longitude:lon,unlockCost:starter?0:tier==2?26000:12000,isStarterHub:starter,tier:tier,hasPort:_portCities.contains(name),hasAirport:_airportCities.contains(name));
 }
+const _portCities=<String>{'Jakarta','Surabaya','Medan','Makassar','Semarang','Palembang','Balikpapan','Pontianak','Manado','Denpasar','Jayapura','Singapore','Penang','Laem Chabang','Ho Chi Minh City','Manila','Cebu','Yangon','Tokyo','Yokohama','Osaka','Busan','Shanghai','Ningbo','Shenzhen','Hong Kong','Tianjin','Mumbai','Chennai','Karachi','Colombo','Dubai','Jebel Ali','Jeddah','Muscat','Istanbul','Rotterdam','Antwerp','Hamburg','Bremen','London','Felixstowe','Marseille','Le Havre','Barcelona','Valencia','Genoa','Gdansk','Athens','Piraeus','Lisbon','Los Angeles','Long Beach','New York','Newark','Savannah','Houston','Miami','Seattle','Vancouver','Montreal','Manzanillo','Panama City','Colon','Santos','Rio de Janeiro','Buenos Aires','Valparaiso','Callao','Cartagena','Montevideo','Alexandria','Port Said','Casablanca','Tangier','Lagos','Accra','Abidjan','Mombasa','Dar es Salaam','Durban','Cape Town','Sydney','Melbourne','Brisbane','Perth','Tauranga','Port Moresby','St Petersburg','Dublin','Chittagong','Guayaquil','Maputo','Auckland','Christchurch'};
+const _airportCities=<String>{'Jakarta','Surabaya','Medan','Makassar','Denpasar','Manado','Jayapura','Singapore','Kuala Lumpur','Bangkok','Ho Chi Minh City','Hanoi','Manila','Cebu','Tokyo','Osaka','Seoul','Shanghai','Shenzhen','Hong Kong','Beijing','Taipei','Mumbai','Chennai','New Delhi','Colombo','Dhaka','Dubai','Abu Dhabi','Riyadh','Jeddah','Doha','Istanbul','Almaty','Tashkent','Amsterdam','Frankfurt','Berlin','London','Paris','Madrid','Barcelona','Milan','Rome','Zurich','Vienna','Warsaw','Stockholm','Oslo','Copenhagen','Helsinki','Athens','Lisbon','Los Angeles','New York','Newark','Houston','Miami','Chicago','Seattle','San Francisco','Vancouver','Toronto','Montreal','Mexico City','Panama City','Sao Paulo','Rio de Janeiro','Buenos Aires','Santiago','Lima','Bogota','Cairo','Casablanca','Lagos','Nairobi','Johannesburg','Cape Town','Sydney','Melbourne','Brisbane','Perth','Auckland','Port Moresby','Moscow','Dublin','Atlanta','Dallas','Boston','Quito','Addis Ababa'};
 abstract final class CityCatalog {
  static final List<CityNode> cities=<CityNode>[
     _city('Jakarta','ID',"Indonesia",'Asia Tenggara',-6.2088,106.8456,1,true),

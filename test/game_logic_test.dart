@@ -57,6 +57,42 @@ void main() {
     });
   });
 
+  group('Multi-modal logistics', () {
+    test('catalog contains road, sea and air fleets', () {
+      expect(VehicleCatalog.catalog.map((v) => v.mode).toSet(),
+          containsAll(TransportMode.values));
+      expect(VehicleCatalog.forTier(VehicleTier.coastalContainerFeeder).cargoCapacityKg,
+          greaterThan(1000000));
+      expect(VehicleCatalog.forTier(VehicleTier.wideBodyJetFreighter).maxSpeedKmh,
+          greaterThan(800));
+    });
+
+    test('major cities expose port and airport facilities', () {
+      final jakarta = CityCatalog.byId('jakarta');
+      final singapore = CityCatalog.byId('singapore');
+      expect(jakarta.hasPort, isTrue);
+      expect(jakarta.hasAirport, isTrue);
+      expect(singapore.hasPort, isTrue);
+      expect(singapore.hasAirport, isTrue);
+    });
+
+    test('road fleet cannot accept a sea contract', () {
+      final vehicle = Vehicle.starter(vehicleId: 'road-only');
+      final contract = CargoContract(
+        contractId: 'sea-only', originCityId: 'jakarta',
+        originCityName: 'Jakarta', destinationCityId: 'singapore',
+        destinationCityName: 'Singapore', cargoType: CargoType.electronics,
+        cargoWeightKg: 500, distanceKm: 900, reward: 100000,
+        rewardXp: 500, departureTimeUtc: null, arrivalTimeUtc: null,
+        status: ContractStatus.available, transportMode: TransportMode.sea,
+        originTerminal: TerminalType.containerPort,
+        destinationTerminal: TerminalType.containerPort,
+      );
+      expect(() => FleetService().assignContract(vehicle, contract,
+          nowUtc: DateTime.utc(2026)), throwsStateError);
+    });
+  });
+
   group('Contract service', () {
     test('generates the requested minimum set of valid local contracts', () {
       final company = Company.newCompany(
