@@ -159,7 +159,7 @@ jobs:
 
           def set_gradle_property(source, prop, value, bounds, kotlin):
               start, end = bounds
-              pattern = r"(?m)^([ \t]*)" + re.escape(prop) + r"\s*(?:=\s*)?['\\"][^'\\"]*['\\"]\s*$"
+              pattern = r"""(?m)^([ \t]*)""" + re.escape(prop) + r"""\s*(?:=\s*)?(?:"[^"]*"|'[^']*')\s*$"""
               replacement = lambda m: m.group(1) + (prop + ' = "' + value + '"' if kotlin else prop + ' "' + value + '"')
               section = source[start:end+1]
               if re.search(pattern, section):
@@ -181,7 +181,7 @@ jobs:
 
           # Verify the exact package identity before building the APK.
           verified = gradle.read_text()
-          if package_name not in verified or not re.search(r"(?m)^\s*applicationId\s*(?:=\s*)?['\\"]" + re.escape(package_name) + r"['\\"]", verified) or not re.search(r"(?m)^\s*namespace\s*(?:=\s*)?['\\"]" + re.escape(package_name) + r"['\\"]", verified):
+          if not re.search(r'(?m)^\s*applicationId\s*(?:=\s*)?"' + re.escape(package_name) + r'"\s*$', verified) or not re.search(r'(?m)^\s*namespace\s*(?:=\s*)?"' + re.escape(package_name) + r'"\s*$', verified):
               raise SystemExit("namespace/applicationId tidak konsisten dengan com.adiexpress.game.")
 
           # Disable release lint checks to avoid the video_player_android
