@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../app/app_state.dart';
 import '../models/city.dart';
+import '../models/contract.dart';
 import '../theme/app_theme.dart';
 
 class MapScreen extends StatefulWidget {
@@ -68,8 +69,9 @@ class _MapScreenState extends State<MapScreen> {
       (city) => city.name == state.company!.headquartersCity,
       orElse: () => CityCatalog.byId('jakarta'),
     );
-    final headquartersX = headquarters.mapX * _worldWidth;
-    final headquartersY = headquarters.mapY * _worldHeight;
+    final headquartersPoint = _cityCanvasPoint(headquarters);
+    final headquartersX = headquartersPoint.dx;
+    final headquartersY = headquartersPoint.dy;
 
     _transformController.value = Matrix4.identity()
       ..translate(
@@ -136,10 +138,28 @@ class _MapScreenState extends State<MapScreen> {
                     clipBehavior: Clip.none,
                     children: [
                       const Positioned.fill(
-                        child: CustomPaint(
-                          size: Size(_worldWidth, _worldHeight),
-                          painter: WorldMapPainter(),
+                        child: ColoredBox(color: Color(0xFF0D151A)),
+                      ),
+                      Positioned.fill(
+                        child: ColorFiltered(
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF132029),
+                            BlendMode.srcIn,
+                          ),
+                          child: Image.asset(
+                            'assets/maps/world_map_dark.png',
+                            width: _worldWidth,
+                            height: _worldHeight,
+                            fit: BoxFit.fill,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const CustomPaint(
+                              painter: WorldMapFallbackPainter(),
+                            ),
+                          ),
                         ),
+                      ),
+                      Positioned.fill(
+                        child: CustomPaint(painter: WorldMapPainter()),
                       ),
                       for (final city in visibleCities)
                         ..._buildCityMarkers(city),
@@ -224,8 +244,9 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   List<Widget> _buildCityMarkers(CityNode city) {
-    final x = city.mapX * _worldWidth;
-    final y = city.mapY * _worldHeight;
+    final point = _cityCanvasPoint(city);
+    final x = point.dx;
+    final y = point.dy;
     final labelOffset = _cityLabelOffsets[city.name] ?? const Offset(10, -18);
     final isHeadquarters =
         context.read<AppState>().company?.headquartersCity == city.name;
@@ -353,240 +374,137 @@ Widget _chip(IconData icon, String text) => Container(
       ),
     );
 
+
+Offset _cityCanvasPoint(CityNode city) => Offset(
+      ((city.longitude + 180) / 360) * 2200,
+      ((90 - city.latitude) / 180) * 1100,
+    );
+
 class WorldMapPainter extends CustomPainter {
-  const WorldMapPainter();
+  const WorldMapPainter({this.contracts = const []});
 
-  static const Color _land = Color(0xFF132029);
-  static const Color _coast = Color(0xFF223542);
-  static const Color _grid = Color(0xFF111B22);
-
-  static const List<List<Offset>> _landmasses = [
-    // North America and Central America.
-    [
-      Offset(.045, .205), Offset(.055, .165), Offset(.082, .135),
-      Offset(.116, .112), Offset(.153, .102), Offset(.192, .115),
-      Offset(.224, .137), Offset(.254, .168), Offset(.278, .207),
-      Offset(.291, .245), Offset(.278, .276), Offset(.253, .296),
-      Offset(.238, .329), Offset(.218, .352), Offset(.203, .386),
-      Offset(.180, .398), Offset(.157, .372), Offset(.137, .349),
-      Offset(.108, .337), Offset(.083, .309), Offset(.062, .273),
-    ],
-    // South America.
-    [
-      Offset(.222, .414), Offset(.248, .414), Offset(.275, .434),
-      Offset(.297, .469), Offset(.309, .508), Offset(.305, .552),
-      Offset(.294, .592), Offset(.284, .635), Offset(.269, .684),
-      Offset(.252, .735), Offset(.238, .789), Offset(.220, .847),
-      Offset(.204, .872), Offset(.190, .834), Offset(.181, .786),
-      Offset(.174, .733), Offset(.166, .681), Offset(.166, .625),
-      Offset(.176, .571), Offset(.187, .520), Offset(.196, .468),
-    ],
-    // Europe and Scandinavia.
-    [
-      Offset(.414, .213), Offset(.427, .184), Offset(.450, .166),
-      Offset(.474, .159), Offset(.494, .170), Offset(.511, .157),
-      Offset(.530, .170), Offset(.544, .194), Offset(.559, .211),
-      Offset(.552, .237), Offset(.535, .249), Offset(.526, .276),
-      Offset(.506, .291), Offset(.486, .283), Offset(.468, .296),
-      Offset(.449, .283), Offset(.432, .265), Offset(.417, .244),
-    ],
-    // Africa.
-    [
-      Offset(.435, .309), Offset(.462, .292), Offset(.493, .295),
-      Offset(.524, .309), Offset(.550, .335), Offset(.565, .372),
-      Offset(.569, .413), Offset(.559, .457), Offset(.545, .505),
-      Offset(.526, .558), Offset(.509, .613), Offset(.489, .665),
-      Offset(.470, .690), Offset(.451, .654), Offset(.437, .607),
-      Offset(.420, .557), Offset(.407, .506), Offset(.405, .458),
-      Offset(.411, .407), Offset(.417, .357),
-    ],
-    // Mainland Asia.
-    [
-      Offset(.531, .205), Offset(.551, .169), Offset(.584, .141),
-      Offset(.625, .119), Offset(.674, .112), Offset(.719, .119),
-      Offset(.759, .130), Offset(.803, .138), Offset(.846, .157),
-      Offset(.886, .174), Offset(.924, .198), Offset(.955, .230),
-      Offset(.970, .267), Offset(.959, .300), Offset(.938, .326),
-      Offset(.910, .341), Offset(.884, .366), Offset(.851, .367),
-      Offset(.827, .350), Offset(.801, .370), Offset(.778, .398),
-      Offset(.750, .391), Offset(.725, .371), Offset(.697, .389),
-      Offset(.672, .413), Offset(.648, .397), Offset(.626, .376),
-      Offset(.601, .358), Offset(.579, .330), Offset(.557, .299),
-      Offset(.541, .263),
-    ],
-    // Arabian peninsula.
-    [
-      Offset(.562, .390), Offset(.589, .378), Offset(.618, .390),
-      Offset(.641, .416), Offset(.650, .450), Offset(.632, .481),
-      Offset(.607, .493), Offset(.583, .472), Offset(.567, .439),
-    ],
-    // Indian subcontinent.
-    [
-      Offset(.659, .393), Offset(.682, .401), Offset(.699, .429),
-      Offset(.704, .465), Offset(.696, .502), Offset(.680, .541),
-      Offset(.665, .520), Offset(.653, .482), Offset(.646, .445),
-    ],
-    // Japan.
-    [
-      Offset(.866, .383), Offset(.879, .390), Offset(.884, .410),
-      Offset(.878, .431), Offset(.867, .449), Offset(.858, .438),
-      Offset(.861, .415),
-    ],
-    // Sumatra.
-    [
-      Offset(.731, .622), Offset(.745, .611), Offset(.757, .624),
-      Offset(.758, .649), Offset(.746, .678), Offset(.734, .670),
-      Offset(.727, .645),
-    ],
-    // Borneo.
-    [
-      Offset(.765, .637), Offset(.786, .625), Offset(.806, .638),
-      Offset(.813, .660), Offset(.804, .682), Offset(.783, .689),
-      Offset(.766, .672), Offset(.758, .652),
-    ],
-    // Java.
-    [
-      Offset(.755, .699), Offset(.778, .694), Offset(.802, .699),
-      Offset(.823, .706), Offset(.817, .716), Offset(.790, .713),
-      Offset(.768, .710),
-    ],
-    // Sulawesi.
-    [
-      Offset(.829, .680), Offset(.839, .665), Offset(.850, .671),
-      Offset(.851, .692), Offset(.865, .704), Offset(.855, .717),
-      Offset(.842, .701), Offset(.830, .699), Offset(.820, .688),
-    ],
-    // Papua.
-    [
-      Offset(.868, .681), Offset(.892, .669), Offset(.917, .675),
-      Offset(.937, .690), Offset(.932, .711), Offset(.908, .720),
-      Offset(.883, .713), Offset(.866, .700),
-    ],
-    // Australia.
-    [
-      Offset(.805, .775), Offset(.832, .752), Offset(.866, .744),
-      Offset(.900, .751), Offset(.932, .774), Offset(.951, .808),
-      Offset(.950, .846), Offset(.930, .877), Offset(.900, .897),
-      Offset(.866, .907), Offset(.834, .893), Offset(.809, .867),
-      Offset(.792, .831), Offset(.793, .800),
-    ],
-    // Greenland.
-    [
-      Offset(.294, .091), Offset(.320, .070), Offset(.351, .065),
-      Offset(.379, .080), Offset(.390, .110), Offset(.379, .146),
-      Offset(.357, .174), Offset(.327, .179), Offset(.304, .151),
-    ],
-    // Madagascar.
-    [
-      Offset(.532, .666), Offset(.544, .675), Offset(.548, .706),
-      Offset(.539, .741), Offset(.529, .735), Offset(.526, .704),
-    ],
-    // New Zealand North and South Islands.
-    [
-      Offset(.955, .900), Offset(.963, .907), Offset(.960, .928),
-      Offset(.950, .940), Offset(.946, .925),
-    ],
-    [
-      Offset(.967, .934), Offset(.977, .940), Offset(.973, .960),
-      Offset(.962, .970), Offset(.958, .954),
-    ],
-  ];
+  final List<CargoContract> contracts;
 
   static const List<(String, String)> _routes = [
-    ('Los Angeles', 'New York'),
-    ('New York', 'London'),
-    ('London', 'Rotterdam'),
-    ('Rotterdam', 'Dubai'),
-    ('Dubai', 'Mumbai'),
-    ('Mumbai', 'Singapore'),
-    ('Singapore', 'Bangkok'),
-    ('Singapore', 'Hong Kong'),
-    ('Hong Kong', 'Tokyo'),
-    ('Singapore', 'Jakarta'),
-    ('Jakarta', 'Kuala Lumpur'),
-    ('Jakarta', 'Pontianak'),
-    ('Jakarta', 'Bandung'),
-    ('Bandung', 'Sukabumi'),
-    ('Bandung', 'Surabaya'),
-    ('Surabaya', 'Makassar'),
-    ('Makassar', 'Sydney'),
-    ('New York', 'Sao Paulo'),
+    ('Los Angeles', 'New York'), ('New York', 'London'),
+    ('London', 'Rotterdam'), ('Rotterdam', 'Dubai'),
+    ('Dubai', 'Mumbai'), ('Mumbai', 'Singapore'),
+    ('Singapore', 'Bangkok'), ('Singapore', 'Hong Kong'),
+    ('Hong Kong', 'Tokyo'), ('Singapore', 'Jakarta'),
+    ('Jakarta', 'Kuala Lumpur'), ('Jakarta', 'Pontianak'),
+    ('Jakarta', 'Bandung'), ('Bandung', 'Sukabumi'),
+    ('Bandung', 'Surabaya'), ('Surabaya', 'Makassar'),
+    ('Makassar', 'Sydney'), ('New York', 'Sao Paulo'),
   ];
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = AppColors.background,
-    );
-
-    final gridPaint = Paint()
-      ..color = _grid
-      ..strokeWidth = 1;
-    for (var i = 1; i < 24; i++) {
-      final x = size.width * i / 24;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-    for (var i = 1; i < 12; i++) {
-      final y = size.height * i / 12;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    final landPaint = Paint()..color = _land;
-    final coastPaint = Paint()
-      ..color = _coast
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.35
-      ..strokeJoin = StrokeJoin.round;
-
-    for (final points in _landmasses) {
-      final path = _smoothClosedPath(points, size);
-      canvas.drawPath(path, landPaint);
-      canvas.drawPath(path, coastPaint);
-    }
-
-    final citiesByName = {
-      for (final city in CityCatalog.allCities) city.name: city,
-    };
+    final cities = {for (final city in CityCatalog.allCities) city.name: city};
     final routePaint = Paint()
-      ..color = const Color(0xFF29414D)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
+      ..color = const Color(0xA6336B72)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
     for (final route in _routes) {
-      final origin = citiesByName[route.$1];
-      final destination = citiesByName[route.$2];
+      final origin = cities[route.$1];
+      final destination = cities[route.$2];
       if (origin == null || destination == null) continue;
-      canvas.drawLine(
-        Offset(origin.mapX * size.width, origin.mapY * size.height),
-        Offset(destination.mapX * size.width, destination.mapY * size.height),
+      final start = _cityCanvasPoint(origin);
+      final end = _cityCanvasPoint(destination);
+      final control = Offset((start.dx + end.dx) / 2, start.dy - 35);
+      canvas.drawPath(
+        Path()..moveTo(start.dx, start.dy)
+          ..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy),
         routePaint,
       );
     }
-  }
+    final pulsePaint = Paint()
+      ..color = const Color(0x5533E5A0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    for (final city in CityCatalog.allCities) {
+      final point = _cityCanvasPoint(city);
+      canvas.drawCircle(point, 10, pulsePaint);
+      pulsePaint.color = const Color(0x2233E5A0);
+      canvas.drawCircle(point, 15, pulsePaint);
+      pulsePaint.color = const Color(0x5533E5A0);
+    }
 
-  Path _smoothClosedPath(List<Offset> points, Size size) {
-    final scaled = points
-        .map((point) => Offset(point.dx * size.width, point.dy * size.height))
-        .toList(growable: false);
-    final path = Path()..moveTo(scaled.first.dx, scaled.first.dy);
-    for (var i = 1; i < scaled.length; i++) {
-      final current = scaled[i];
-      final next = scaled[(i + 1) % scaled.length];
-      final midpoint = Offset(
-        (current.dx + next.dx) / 2,
-        (current.dy + next.dy) / 2,
+    final citiesById = {for (final city in CityCatalog.allCities) city.id: city};
+    final now = DateTime.now().toUtc();
+    final vehiclePaint = Paint()..color = const Color(0xFFFFC857);
+    for (final contract in contracts) {
+      if (contract.status != ContractStatus.inTransit) continue;
+      final departure = contract.departureTimeUtc;
+      final arrival = contract.arrivalTimeUtc;
+      final origin = citiesById[contract.originCityId];
+      final destination = citiesById[contract.destinationCityId];
+      if (departure == null || arrival == null || origin == null || destination == null) continue;
+      final duration = arrival.difference(departure).inMilliseconds;
+      if (duration <= 0) continue;
+      final progress = (now.difference(departure).inMilliseconds / duration)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final start = _cityCanvasPoint(origin);
+      final end = _cityCanvasPoint(destination);
+      final point = Offset(
+        start.dx + (end.dx - start.dx) * progress,
+        start.dy + (end.dy - start.dy) * progress,
       );
-      path.quadraticBezierTo(
-        current.dx,
-        current.dy,
-        midpoint.dx,
-        midpoint.dy,
+      canvas.drawCircle(point, 7, vehiclePaint);
+      canvas.drawCircle(
+        point,
+        11,
+        Paint()
+          ..color = const Color(0x66FFC857)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
       );
     }
-    path.close();
-    return path;
   }
 
   @override
-  bool shouldRepaint(covariant WorldMapPainter oldDelegate) => false;
+  bool shouldRepaint(covariant WorldMapPainter oldDelegate) =>
+      oldDelegate.contracts != contracts;
+}
+
+/// Approximate geographic outlines used only if the Natural Earth raster fails.
+class WorldMapFallbackPainter extends CustomPainter {
+  const WorldMapFallbackPainter();
+
+  static const _continents = <List<Offset>>[
+    [Offset(-168,70),Offset(-150,60),Offset(-132,55),Offset(-125,48),Offset(-123,40),Offset(-117,32),Offset(-108,29),Offset(-105,22),Offset(-97,18),Offset(-90,20),Offset(-84,25),Offset(-80,32),Offset(-75,36),Offset(-67,44),Offset(-60,50),Offset(-65,57),Offset(-78,62),Offset(-95,68),Offset(-115,72),Offset(-140,72)],
+    [Offset(-81,12),Offset(-72,10),Offset(-60,7),Offset(-50,2),Offset(-40,-8),Offset(-35,-15),Offset(-40,-25),Offset(-48,-35),Offset(-54,-46),Offset(-66,-55),Offset(-73,-48),Offset(-75,-35),Offset(-78,-20),Offset(-80,-5)],
+    [Offset(-10,36),Offset(-10,44),Offset(0,50),Offset(10,55),Offset(20,60),Offset(30,70),Offset(45,72),Offset(60,68),Offset(75,72),Offset(95,75),Offset(120,68),Offset(145,60),Offset(160,55),Offset(170,48),Offset(155,42),Offset(140,38),Offset(130,32),Offset(120,25),Offset(110,20),Offset(105,10),Offset(100,5),Offset(95,10),Offset(90,20),Offset(80,8),Offset(75,10),Offset(70,20),Offset(60,25),Offset(50,30),Offset(40,35),Offset(30,40),Offset(20,38),Offset(10,42),Offset(0,40)],
+    [Offset(-17,31),Offset(0,37),Offset(15,34),Offset(30,31),Offset(40,12),Offset(50,0),Offset(42,-12),Offset(35,-25),Offset(25,-35),Offset(17,-34),Offset(10,-25),Offset(0,-5),Offset(-10,5),Offset(-17,20)],
+    [Offset(113,-11),Offset(125,-13),Offset(138,-12),Offset(153,-24),Offset(151,-38),Offset(140,-39),Offset(128,-34),Offset(115,-25)],
+    [Offset(-52,60),Offset(-42,65),Offset(-35,75),Offset(-42,82),Offset(-55,84),Offset(-65,77),Offset(-60,68)],
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final land = Paint()..color = const Color(0xFFFFFFFF);
+    final coast = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    for (final polygon in _continents) {
+      final path = Path();
+      for (var i = 0; i < polygon.length; i++) {
+        final coordinate = polygon[i];
+        final point = Offset(
+          ((coordinate.dx + 180) / 360) * size.width,
+          ((90 - coordinate.dy) / 180) * size.height,
+        );
+        if (i == 0) { path.moveTo(point.dx, point.dy); }
+        else { path.lineTo(point.dx, point.dy); }
+      }
+      path.close();
+      canvas.drawPath(path, land);
+      canvas.drawPath(path, coast);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant WorldMapFallbackPainter oldDelegate) => false;
 }
