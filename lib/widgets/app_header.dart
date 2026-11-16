@@ -16,12 +16,12 @@ class AppHeader extends StatelessWidget {
         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           Text(c.name.toUpperCase(),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:14,letterSpacing:.6)),
           const SizedBox(height:4),
-          Text('TINGKAT '+c.level.toString()+' • '+c.headquartersCity,style:const TextStyle(color:AppColors.textSecondary,fontSize:10)),
+          Text('TINGKAT ${c.level} • ${c.headquartersCity}',style:const TextStyle(color:AppColors.textSecondary,fontSize:10)),
         ])),
         const SizedBox(width:8),
         Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
           Text(GameFormatters.currency(c.balance),style:const TextStyle(color:AppColors.emerald,fontWeight:FontWeight.w900,fontSize:15)),
-          Text(s.totalVehicles.toString()+' kendaraan • '+s.activeVehicles.toString()+' di perjalanan',style:const TextStyle(color:AppColors.textSecondary,fontSize:9)),
+          Text('${s.totalVehicles} kendaraan • ${s.activeVehicles} di perjalanan',style:const TextStyle(color:AppColors.textSecondary,fontSize:9)),
         ]),
       ]),
     );

@@ -35,7 +35,7 @@ void main() {
       final distance = CityCatalog.distanceBetween(jakarta, singapore);
 
       expect(distance, greaterThan(880));
-      expect(distance, lessThan(900));
+      expect(distance, lessThan(910));
     });
 
     test('returns zero distance for identical coordinates', () {

@@ -48,7 +48,7 @@ class _HexBorder extends CustomPainter {
   final Color color;
   @override
   void paint(Canvas canvas, Size size) {
-    final p = _HexClipper().getClip(size);
+    final p = const _HexClipper().getClip(size);
     canvas.drawPath(p, Paint()..color=color..style=PaintingStyle.stroke..strokeWidth=2.4);
   }
   @override

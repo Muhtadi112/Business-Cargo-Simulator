@@ -110,7 +110,7 @@ class AppState extends ChangeNotifier {
         count: 8,
       );
       await _persist();
-      _toastMessage = 'Perusahaan ${cleanName} resmi didirikan!';
+      _toastMessage = 'Perusahaan $cleanName resmi didirikan!';
     } finally {
       _isBusy = false;
       notifyListeners();
@@ -123,7 +123,7 @@ class AppState extends ChangeNotifier {
     int? logoColor,
   }) async {
     final current = _company;
-    if (current == null) throw StateError('Dirikan perusahaan terlebih dahulu.');
+    if (current == null) { throw StateError('Dirikan perusahaan terlebih dahulu.'); }
     final updatedName = name?.trim();
     if (updatedName != null && updatedName.length < 3) {
       throw ArgumentError('Nama perusahaan minimal 3 karakter.');
