@@ -138,7 +138,7 @@ jobs:
           package_name = "com.adiexpress.game"
 
           def block_bounds(source, block_name, start_at=0):
-              match = re.search(r"(?m)^\\s*" + re.escape(block_name) + r"\\s*\\{", source[start_at:])
+              match = re.search(r"(?m)^\s*" + re.escape(block_name) + r"\s*\{", source[start_at:])
               if not match:
                   return None
               open_brace = start_at + match.end() - 1
@@ -159,7 +159,7 @@ jobs:
 
           def set_gradle_property(source, prop, value, bounds, kotlin):
               start, end = bounds
-              pattern = r"(?m)^([ \\t]*)" + re.escape(prop) + r"\\s*(?:=\\s*)?['\\\"][^'\\\"]*['\\\"]\\s*$"
+              pattern = r"(?m)^([ \t]*)" + re.escape(prop) + r"\s*(?:=\s*)?['\\"][^'\\"]*['\\"]\s*$"
               replacement = lambda m: m.group(1) + (prop + ' = "' + value + '"' if kotlin else prop + ' "' + value + '"')
               section = source[start:end+1]
               if re.search(pattern, section):
@@ -167,7 +167,7 @@ jobs:
               else:
                   indent = "        " if prop == "applicationId" else "    "
                   statement = prop + ' = "' + value + '"' if kotlin else prop + ' "' + value + '"'
-                  section += "\\n" + indent + statement + "\\n"
+                  section += "\n" + indent + statement + "\n"
               return source[:start] + section + source[end+1:]
 
           is_kotlin = gradle.suffix == ".kts"
@@ -181,7 +181,7 @@ jobs:
 
           # Verify the exact package identity before building the APK.
           verified = gradle.read_text()
-          if package_name not in verified or not re.search(r"(?m)^\\s*applicationId\\s*(?:=\\s*)?['\\\"]" + re.escape(package_name) + r"['\\\"]", verified) or not re.search(r"(?m)^\\s*namespace\\s*(?:=\\s*)?['\\\"]" + re.escape(package_name) + r"['\\\"]", verified):
+          if package_name not in verified or not re.search(r"(?m)^\s*applicationId\s*(?:=\s*)?['\\"]" + re.escape(package_name) + r"['\\"]", verified) or not re.search(r"(?m)^\s*namespace\s*(?:=\s*)?['\\"]" + re.escape(package_name) + r"['\\"]", verified):
               raise SystemExit("namespace/applicationId tidak konsisten dengan com.adiexpress.game.")
 
           # Disable release lint checks to avoid the video_player_android
