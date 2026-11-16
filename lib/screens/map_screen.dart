@@ -17,7 +17,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       _Mission('Beli kendaraan kedua',s.vehicles.length,2),
       _Mission('Selesaikan 3 kontrak pengiriman',c?.completedContracts??0,3),
       _Mission('Buka 2 kota jaringan logistik',c?.unlockedCityIds.length??0,2),
-      _Mission('Capai nilai perusahaan $100K',(c?.balance??0)+(c?.fleetValue??0),100000),
+      _Mission('Capai nilai perusahaan \$100K',(c?.balance??0)+(c?.fleetValue??0),100000),
     ];
     final index=missions.indexWhere((m)=>!m.done);
     final mission=missions[index<0?missions.length-1:index];

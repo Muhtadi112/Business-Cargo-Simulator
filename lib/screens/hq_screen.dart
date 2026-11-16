@@ -56,7 +56,7 @@ class _HqScreenState extends State<HqScreen>{
     card(Icons.local_shipping, 'Beli kendaraan kedua', '$vehicles / 2 kendaraan', vehicles >= 2 ? 'SELESAI' : 'AKTIF'),
     card(Icons.assignment_turned_in, 'Selesaikan 3 kontrak pengiriman', '$done / 3 kontrak selesai', done >= 3 ? 'SELESAI' : 'AKTIF'),
     card(Icons.public, 'Buka 2 kota jaringan logistik', '$cities / 2 kota terbuka', cities >= 2 ? 'SELESAI' : 'AKTIF'),
-    card(Icons.business, 'Capai nilai perusahaan $100K', AppFormatters.money(value), value >= 100000 ? 'SELESAI' : 'AKTIF'),
+    card(Icons.business, 'Capai nilai perusahaan \$100K', AppFormatters.money(value), value >= 100000 ? 'SELESAI' : 'AKTIF'),
   ]);
 }
  Widget changes(c)=>Column(children:[card(Icons.rocket_launch,'Perusahaan didirikan','Markas utama di ${c.headquartersCity}',AppFormatters.dateTime(c.createdAtUtc)),card(Icons.public,'Jaringan hub','${c.unlockedCityIds.length} kota terbuka','AKTIF'),card(Icons.assignment,'Riwayat kontrak','${c.completedContracts} pengiriman selesai','OPERASI')]);
