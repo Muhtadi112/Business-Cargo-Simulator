@@ -107,10 +107,10 @@ jobs:
           # Disable release lint checks to avoid the video_player_android
           # List.removeLast() NoSuchMethodError on the Android lint runtime.
           gradle_text = gradle.read_text()
-          if re.search(r"(?m)^\\s*lint\\s*\\{", gradle_text):
+          if re.search(r"(?m)^\s*lint\s*\{", gradle_text):
               raise SystemExit("Blok lint sudah ada; periksa konfigurasi agar tidak terjadi duplikasi.")
 
-          android_match = re.search(r"(?m)^\\s*android\\s*\\{", gradle_text)
+          android_match = re.search(r"(?m)^\s*android\s*\{", gradle_text)
           if not android_match:
               raise SystemExit("Blok android { ... } tidak ditemukan di file Gradle.")
 
@@ -129,9 +129,9 @@ jobs:
               raise SystemExit("Blok android tidak memiliki kurung penutup yang valid.")
 
           if gradle.suffix == ".kts":
-              lint_config = "\\n    lint {\\n        checkReleaseBuilds = false\\n        abortOnError = false\\n    }\\n"
+              lint_config = "\n    lint {\n        checkReleaseBuilds = false\n        abortOnError = false\n    }\n"
           else:
-              lint_config = "\\n    lint {\\n        checkReleaseBuilds false\\n        abortOnError false\\n    }\\n"
+              lint_config = "\n    lint {\n        checkReleaseBuilds false\n        abortOnError false\n    }\n"
           gradle_text = gradle_text[:close_brace] + lint_config + gradle_text[close_brace:]
           gradle.write_text(gradle_text)
           PY
