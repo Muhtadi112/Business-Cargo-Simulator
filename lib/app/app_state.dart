@@ -265,7 +265,7 @@ class AppState extends ChangeNotifier {
       _contracts = resolution.contracts;
       final completed = resolution.completedContractIds.length;
       _toastMessage = '$completed pengiriman selesai. Saldo dan XP bertambah.';
-      _persist();
+      unawaited(_persist());
       notifyListeners();
     } else if (beforeCount > 0) {
       notifyListeners();
@@ -284,7 +284,7 @@ class AppState extends ChangeNotifier {
       _company = resolution.company;
       _vehicles = resolution.vehicles;
       _contracts = resolution.contracts;
-      _persist();
+      unawaited(_persist());
     }
   }
 
