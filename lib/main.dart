@@ -12,9 +12,13 @@ import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations(
-    const [DeviceOrientation.portraitUp],
-  );
+  try {
+    await SystemChrome.setPreferredOrientations(
+      const [DeviceOrientation.portraitUp],
+    );
+  } catch (_) {
+    // Platform orientation hints are optional; never block application startup.
+  }
   runApp(const BusinessCargoSimulatorApp());
 }
 

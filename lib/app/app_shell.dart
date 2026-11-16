@@ -20,10 +20,13 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tab = context.select<AppState, int>((state) => state.selectedTab);
-    final hasCompany = context.select<AppState, bool>(
-      (state) => state.company != null,
-    );
+    final state = context.watch<AppState>();
+    if (!state.isInitialized || state.company == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final tab = state.selectedTab;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -38,10 +41,7 @@ class AppShell extends StatelessWidget {
         top: false,
         child: Stack(
           children: [
-            if (!hasCompany)
-              const Center(child: CircularProgressIndicator())
-            else
-              IndexedStack(
+            IndexedStack(
                 index: tab,
                 children: const [
                   HqScreen(),

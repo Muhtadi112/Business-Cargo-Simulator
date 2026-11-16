@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Automatically increment Android version code
         if: github.event_name != 'pull_request'
@@ -32,6 +34,23 @@ jobs:
               raise SystemExit("Format version di pubspec.yaml harus x.y.z+code.")
 
           version_name, version_code = match.groups()
+
+          # Do not double-increment when this commit already updates the version.
+          try:
+              import subprocess
+              previous = subprocess.check_output(
+                  ["git", "show", "HEAD^:pubspec.yaml"], text=True
+              )
+              previous_match = re.search(
+                  r"(?m)^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$",
+                  previous,
+              )
+          except Exception:
+              previous_match = None
+          if previous_match and previous_match.group(0) != match.group(0):
+              print(f"Using explicitly updated version: {version_name}+{version_code}")
+              raise SystemExit(0)
+
           next_code = int(version_code) + 1
           updated = content[:match.start()] + f"version: {version_name}+{next_code}" + content[match.end():]
           path.write_text(updated)
@@ -216,7 +235,7 @@ jobs:
           gradle.write_text(gradle_text)
           PY
 
-      - name: Generate world map and original launcher icon assets
+      - name: Generate world map and normalize official launcher icon
         shell: bash
         run: |
           python3 -m pip install --quiet pillow
@@ -249,21 +268,16 @@ jobs:
                           draw.polygon(project(polygon[0]), fill=(255, 255, 255, 255))
               image.resize((2200, 1100), Image.Resampling.LANCZOS).save(world, optimize=True)
 
-          icon = Image.new("RGBA", (1024, 1024), (13, 21, 26, 255))
-          d = ImageDraw.Draw(icon)
-          emerald = (46, 229, 157, 255)
-          hexagon = [(512,105),(835,292),(835,665),(512,850),(189,665),(189,292)]
-          d.line(hexagon + [hexagon[0]], fill=emerald, width=34, joint="curve")
-          d.ellipse((310,250,714,654), outline=emerald, width=24)
-          d.arc((395,250,629,654),70,290,fill=emerald,width=18)
-          d.arc((395,250,629,654),250,110,fill=emerald,width=18)
-          d.arc((310,340,714,560),0,180,fill=emerald,width=18)
-          d.rounded_rectangle((280,590,610,760),radius=28,fill=emerald)
-          d.polygon([(610,640),(715,640),(785,715),(785,760),(610,760)],fill=emerald)
-          d.rectangle((665,660,715,705),fill=(13,21,26,255))
-          d.ellipse((345,720,430,805),fill=(13,21,26,255),outline=emerald,width=18)
-          d.ellipse((650,720,735,805),fill=(13,21,26,255),outline=emerald,width=18)
-          icon.save(icons / "app_icon.png", optimize=True)
+          official_icon = icons / "app_icon.png"
+          if not official_icon.is_file():
+              raise SystemExit("Logo resmi assets/icons/app_icon.png tidak ditemukan.")
+          try:
+              with Image.open(official_icon) as source:
+                  source.verify()
+              with Image.open(official_icon) as source:
+                  source.convert("RGBA").save(official_icon, format="PNG", optimize=True)
+          except Exception as error:
+              raise SystemExit(f"Logo resmi tidak dapat dibaca atau dikonversi: {error}")
           PY
 
       - name: Remove generated default widget test
@@ -285,8 +299,8 @@ jobs:
       - name: Run game logic tests
         run: flutter test --no-pub
 
-      - name: Generate Android launcher icons
-        run: dart run flutter_launcher_icons
+      - name: Run launcher icons generator
+        run: flutter pub run flutter_launcher_icons:main
 
       - name: Build release APK
         run: flutter build apk --release --no-pub

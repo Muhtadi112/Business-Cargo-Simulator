@@ -58,12 +58,13 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   }
 
   void _initializeCamera(Size viewport, AppState state) {
-    if (_cameraInitialized || viewport.isEmpty || state.company == null) {
+    final company = state.company;
+    if (_cameraInitialized || viewport.isEmpty || company == null) {
       return;
     }
 
     final headquarters = CityCatalog.allCities.firstWhere(
-      (city) => city.name == state.company!.headquartersCity,
+      (city) => city.name == company.headquartersCity,
       orElse: () => CityCatalog.byId('jakarta'),
     );
     final headquartersPoint = _cityCanvasPoint(headquarters);

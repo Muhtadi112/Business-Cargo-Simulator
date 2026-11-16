@@ -49,9 +49,12 @@ class AppState extends ChangeNotifier {
   bool get isInitialized => _initialized;
   bool get isBusy => _isBusy;
   bool get needsCompanySetup => _company == null;
-  List<CityNode> get unlockedCities => _company == null
-      ? <CityNode>[]
-      : CityCatalog.unlockedBy(_company!.unlockedCityIds);
+  List<CityNode> get unlockedCities {
+    final company = _company;
+    return company == null
+        ? <CityNode>[]
+        : CityCatalog.unlockedBy(company.unlockedCityIds);
+  }
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -65,13 +68,25 @@ class AppState extends ChangeNotifier {
         _contracts = savedGame.contracts;
         _resolveArrivalsAndPersist();
       }
+    } catch (error, stackTrace) {
+      debugPrint('Local save initialization failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _company = null;
+      _vehicles = <Vehicle>[];
+      _contracts = <CargoContract>[];
+      _toastMessage = 'Data lama tidak dapat dibaca. Silakan buat perusahaan baru.';
+      try {
+        await _saveService.resetGame();
+      } catch (_) {
+        // Cleanup is best-effort; startup must continue to company setup.
+      }
+    } finally {
       _initialized = true;
+      _isBusy = false;
       _ticker ??= Timer.periodic(
         const Duration(seconds: 1),
         (_) => _onTick(),
       );
-    } finally {
-      _isBusy = false;
       notifyListeners();
     }
   }
@@ -97,7 +112,7 @@ class AppState extends ChangeNotifier {
     _isBusy = true;
     notifyListeners();
     try {
-      _company = Company.newCompany(
+      final company = Company.newCompany(
         id: _uuid.v4(),
         name: cleanName,
         headquartersCity: city.name,
@@ -105,11 +120,12 @@ class AppState extends ChangeNotifier {
         logoId: logoId,
         logoColor: logoColor,
       ).copyWith(unlockedCityIds: <String>[city.id]);
+      _company = company;
       _vehicles = <Vehicle>[
         Vehicle.starter(vehicleId: _uuid.v4()),
       ];
       _contracts = _contractService.generateContractsForCompany(
-        _company!,
+        company,
         count: 8,
       );
       await _persist();
@@ -258,10 +274,14 @@ class AppState extends ChangeNotifier {
   }
 
 
-  int get fleetSlots => 12 + (_company == null ? 0 : (_company!.depotLevel - 1) * 8) +
-      (_company?.riverTerminalBuilt == true ? 12 : 0) +
-      (_company?.airportBranchBuilt == true ? 8 : 0) +
-      (_company?.seaPortBuilt == true ? 12 : 0);
+  int get fleetSlots {
+    final company = _company;
+    return 12 +
+        (company == null ? 0 : (company.depotLevel - 1) * 8) +
+        (company?.riverTerminalBuilt == true ? 12 : 0) +
+        (company?.airportBranchBuilt == true ? 8 : 0) +
+        (company?.seaPortBuilt == true ? 12 : 0);
+  }
 
   Future<void> upgradeFuelTank(FuelType type) async {
     final c = _company;
@@ -414,8 +434,17 @@ class AppState extends ChangeNotifier {
   }
 
   void _onTick() {
-    if (_company == null) return;
-    final goalCompany = _company!;
+    try {
+      _onTickSafely();
+    } catch (error, stackTrace) {
+      debugPrint('Background game tick failed safely: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  void _onTickSafely() {
+    final goalCompany = _company;
+    if (goalCompany == null) return;
     final nowUtc = DateTime.now().toUtc();
     final dayStart = DateTime.utc(nowUtc.year, nowUtc.month, nowUtc.day);
     final monday = dayStart.subtract(Duration(days: dayStart.weekday - 1));
@@ -432,7 +461,7 @@ class AppState extends ChangeNotifier {
         .where((contract) => contract.status == ContractStatus.inTransit)
         .length;
     final resolution = _fleetService.resolveArrivedTrips(
-      company: _company!,
+      company: goalCompany,
       vehicles: _vehicles,
       contracts: _contracts,
     );
@@ -452,30 +481,42 @@ class AppState extends ChangeNotifier {
   }
 
   void _resolveArrivalsAndPersist() {
-    final company = _company;
-    if (company == null) return;
-    final resolution = _fleetService.resolveArrivedTrips(
-      company: company,
-      vehicles: _vehicles,
-      contracts: _contracts,
-    );
-    if (resolution.completedContractIds.isNotEmpty) {
-      _company = resolution.company;
-      _vehicles = resolution.vehicles;
-      _contracts = resolution.contracts;
-      _applyGoalProgress(resolution.completedContractIds.length);
-      unawaited(_persist());
+    try {
+      final company = _company;
+      if (company == null) return;
+      final resolution = _fleetService.resolveArrivedTrips(
+        company: company,
+        vehicles: _vehicles,
+        contracts: _contracts,
+      );
+      if (resolution.completedContractIds.isNotEmpty) {
+        _company = resolution.company;
+        _vehicles = resolution.vehicles;
+        _contracts = resolution.contracts;
+        _applyGoalProgress(resolution.completedContractIds.length);
+        unawaited(_persist());
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Arrival recovery skipped: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
   Future<void> _persist() async {
     final company = _company;
     if (company == null) return;
-    await _saveService.saveGame(
-      company: company,
-      vehicles: _vehicles,
-      contracts: _contracts,
-    );
+    try {
+      await _saveService.saveGame(
+        company: company,
+        vehicles: _vehicles,
+        contracts: _contracts,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Local save failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _toastMessage = 'Penyimpanan lokal gagal. Progres saat ini masih berjalan.';
+      if (hasListeners) notifyListeners();
+    }
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/company.dart';
@@ -22,8 +23,13 @@ class SaveService {
   static const String _saveKey = 'business_cargo_simulator_save_v1';
 
   Future<bool> hasSave() async {
-    final preferences = await SharedPreferences.getInstance();
-    return preferences.containsKey(_saveKey);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return preferences.containsKey(_saveKey);
+    } catch (error) {
+      debugPrint('Checking local save failed: $error');
+      return false;
+    }
   }
 
   Future<void> saveGame({
@@ -31,27 +37,32 @@ class SaveService {
     required List<Vehicle> vehicles,
     required List<CargoContract> contracts,
   }) async {
-    final preferences = await SharedPreferences.getInstance();
-    final payload = <String, dynamic>{
-      'schemaVersion': 1,
-      'savedAtUtc': DateTime.now().toUtc().toIso8601String(),
-      'company': company.toJson(),
-      'vehicles': vehicles.map((vehicle) => vehicle.toJson()).toList(),
-      'contracts': contracts.map((contract) => contract.toJson()).toList(),
-    };
-    final encoded = jsonEncode(payload);
-    final saved = await preferences.setString(_saveKey, encoded);
-    if (!saved) {
-      throw StateError('Progress game gagal disimpan ke penyimpanan lokal.');
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final payload = <String, dynamic>{
+        'schemaVersion': 1,
+        'savedAtUtc': DateTime.now().toUtc().toIso8601String(),
+        'company': company.toJson(),
+        'vehicles': vehicles.map((vehicle) => vehicle.toJson()).toList(),
+        'contracts': contracts.map((contract) => contract.toJson()).toList(),
+      };
+      final saved = await preferences.setString(_saveKey, jsonEncode(payload));
+      if (!saved) {
+        debugPrint('SharedPreferences rejected the local save write.');
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Saving local game failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      // Persistence is best-effort and must not crash gameplay.
     }
   }
 
   Future<SavedGame?> loadGame() async {
-    final preferences = await SharedPreferences.getInstance();
-    final encoded = preferences.getString(_saveKey);
-    if (encoded == null || encoded.isEmpty) return null;
-
     try {
+      final preferences = await SharedPreferences.getInstance();
+      final encoded = preferences.getString(_saveKey);
+      if (encoded == null || encoded.trim().isEmpty) return null;
+
       final decoded = jsonDecode(encoded);
       if (decoded is! Map<String, dynamic>) {
         throw const FormatException('Format save tidak valid.');
@@ -76,15 +87,25 @@ class SaveService {
             .map(CargoContract.fromJson)
             .toList(),
       );
-    } on FormatException {
-      rethrow;
-    } catch (error) {
-      throw FormatException('Save game tidak dapat dibaca: $error');
+    } catch (error, stackTrace) {
+      debugPrint('Local save is missing or corrupted: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      try {
+        final preferences = await SharedPreferences.getInstance();
+        await preferences.remove(_saveKey);
+      } catch (_) {
+        // Corrupt-data cleanup is optional; app startup still falls back.
+      }
+      return null;
     }
   }
 
   Future<void> resetGame() async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.remove(_saveKey);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.remove(_saveKey);
+    } catch (error) {
+      debugPrint('Resetting local save failed: $error');
+    }
   }
 }

@@ -36,13 +36,17 @@ class _SplashScreenState extends State<SplashScreen> {
     controller.addListener(_onVideoChanged);
 
     try {
-      await controller.initialize();
+      await controller.initialize().timeout(const Duration(seconds: 5));
       if (!mounted || _finished) return;
       await controller.setLooping(false);
       await controller.play();
       if (mounted) setState(() {});
     } catch (_) {
-      if (mounted) setState(() => _videoUnavailable = true);
+      if (mounted) {
+        setState(() => _videoUnavailable = true);
+        // Network splash is optional; do not block offline startup.
+        Future<void>.delayed(const Duration(milliseconds: 400), _continue);
+      }
     }
   }
 
