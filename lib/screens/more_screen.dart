@@ -122,7 +122,7 @@ class _MoreScreenState extends State<MoreScreen> {
               ),
               title: Text(entry.companyName),
               subtitle: Text('Level ${entry.level}'),
-              trailing: Text('$${entry.companyValue.toStringAsFixed(0)}'),
+              trailing: Text('\$${entry.companyValue.toStringAsFixed(0)}'),
             );
           }).toList(),
         ),

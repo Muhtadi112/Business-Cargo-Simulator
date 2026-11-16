@@ -30,7 +30,7 @@ class _StaffScreenState extends State<StaffScreen> {
       final name = _people[_tab][i];
       return Card(child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.person)), title: Text(name),
-        subtitle: Text('Skill ${4+i}/5 • bonus ${5+i*3}%\nGaji harian $${180+i*35}'),
+        subtitle: Text('Skill ${4+i}/5 • bonus ${5+i*3}%\nGaji harian \$${180+i*35}'),
         trailing: FilledButton(onPressed: _hired.contains(name) ? null : () => setState(() => _hired.add(name)), child: const Text('Rekrut')),
       ));
     }),
