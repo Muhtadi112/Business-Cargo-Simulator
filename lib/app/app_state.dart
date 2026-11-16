@@ -35,6 +35,9 @@ class AppState extends ChangeNotifier {
   bool _isBusy = false;
 
   Company? get company => _company;
+  bool get hasCompany => _company != null;
+  int get totalVehicles => _vehicles.length;
+  int get activeVehicles => _vehicles.where((v) => v.status == VehicleStatus.enRoute).length;
   List<Vehicle> get vehicles => List<Vehicle>.unmodifiable(_vehicles);
   List<CargoContract> get contracts =>
       List<CargoContract>.unmodifiable(_contracts);
