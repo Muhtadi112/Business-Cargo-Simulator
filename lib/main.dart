@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +17,11 @@ class BusinessCargoSimulatorApp extends StatelessWidget {
   const BusinessCargoSimulatorApp({super.key});
   @override
   Widget build(BuildContext context) => ChangeNotifierProvider(
-    create: (_) => AppState()..initialize(),
+    create: (_) {
+      final state = AppState();
+      unawaited(state.initialize());
+      return state;
+    },
     child: MaterialApp(
       title: 'Business Cargo Simulator',
       debugShowCheckedModeBanner: false,
