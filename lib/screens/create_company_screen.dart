@@ -63,7 +63,7 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
         Form(key:_formKey,child:TextFormField(
           controller:_name,maxLength:28,textCapitalization:TextCapitalization.words,
           onChanged:(_) => setState((){}),
-          decoration:const InputDecoration(labelText:'Nama perusahaan',hintText:'ADIEXPRESS',prefixIcon:Icon(Icons.edit_business)),
+          decoration:const InputDecoration(labelText:'Nama perusahaan',hintText:'ADIEXPRESS',prefixIcon:Icon(Icons.business)),
           validator:(v)=>v!=null && v.trim().isNotEmpty && v.trim().length<3 ? 'Minimal 3 karakter.' : null,
         )),
         const SizedBox(height:12),
@@ -104,7 +104,7 @@ class _CreateCompanyScreenState extends State<CreateCompanyScreen> {
           style:FilledButton.styleFrom(backgroundColor:AppColors.emerald,foregroundColor:AppColors.background),
         )),
         const SizedBox(height:12),
-        const Text('MODAL AWAL  $50.000  •  1 LIGHT DELIVERY VAN',textAlign:TextAlign.center,style:TextStyle(color:AppColors.textSecondary,fontSize:10)),
+        const Text('MODAL AWAL  \$50.000  •  1 LIGHT DELIVERY VAN',textAlign:TextAlign.center,style:TextStyle(color:AppColors.textSecondary,fontSize:10)),
       ],
     )));
   }
