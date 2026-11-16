@@ -14,6 +14,8 @@ abstract final class AppColors {
 }
 
 abstract final class AppTheme {
+  static ThemeData get darkTheme => dark;
+
   static ThemeData get dark {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.emerald,
