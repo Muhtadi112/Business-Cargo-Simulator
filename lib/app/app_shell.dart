@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'app_state.dart';
 import '../screens/chat_screen.dart';
 import '../screens/contracts_screen.dart';
@@ -15,59 +17,128 @@ import '../widgets/bottom_navigation.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({super.key});
+
   @override
   Widget build(BuildContext context) {
     final tab = context.select<AppState, int>((state) => state.selectedTab);
+    final hasCompany = context.select<AppState, bool>(
+      (state) => state.company != null,
+    );
+
     return Scaffold(
-      body: SafeArea(child: Column(children: [
-        const AppHeader(),
-        Expanded(child: IndexedStack(index: tab, children: const [
-          HqScreen(), MapScreen(), ContractsScreen(), FleetScreen(),
-          StaffScreen(), MoreScreen(), ChatScreen(),
-        ])),
-      ])),
+      backgroundColor: AppColors.background,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: const SafeArea(
+          bottom: false,
+          child: AppHeader(),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Stack(
+          children: [
+            if (!hasCompany)
+              const Center(child: CircularProgressIndicator())
+            else
+              IndexedStack(
+                index: tab,
+                children: const [
+                  HqScreen(),
+                  MapScreen(),
+                  ContractsScreen(),
+                  FleetScreen(),
+                  StaffScreen(),
+                  MoreScreen(),
+                  ChatScreen(),
+                ],
+              ),
+            const Positioned(
+              bottom: 12,
+              left: 16,
+              right: 16,
+              child: _Toast(),
+            ),
+          ],
+        ),
+      ),
       bottomNavigationBar: const BottomNavigation(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: const _Toast(),
     );
   }
 }
+
 class _Toast extends StatefulWidget {
   const _Toast();
+
   @override
   State<_Toast> createState() => _ToastState();
 }
+
 class _ToastState extends State<_Toast> {
   Timer? _timer;
+  String? _scheduledMessage;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final message = context.watch<AppState>().toastMessage;
-    if (message != null) {
-      _timer?.cancel();
-      _timer = Timer(const Duration(seconds: 3), () {
-        if (mounted && context.read<AppState>().toastMessage == message) {
-          context.read<AppState>().clearToast();
-        }
-      });
-    }
+    _scheduleDismiss(context.watch<AppState>().toastMessage);
   }
+
+  void _scheduleDismiss(String? message) {
+    if (message == null) {
+      _scheduledMessage = null;
+      _timer?.cancel();
+      return;
+    }
+    if (message == _scheduledMessage) return;
+    _scheduledMessage = message;
+    _timer?.cancel();
+    _timer = Timer(const Duration(seconds: 3), () {
+      if (mounted && context.read<AppState>().toastMessage == message) {
+        context.read<AppState>().clearToast();
+      }
+    });
+  }
+
   @override
-  void dispose() { _timer?.cancel(); super.dispose(); }
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final message = context.select<AppState, String?>((state) => state.toastMessage);
+    final message = context.select<AppState, String?>(
+      (state) => state.toastMessage,
+    );
     if (message == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 65, left: 15, right: 15),
+
+    return Material(
+      color: Colors.transparent,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 14,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
-        child: InkWell(onTap: context.read<AppState>().clearToast, child: Text(message)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: context.read<AppState>().clearToast,
+          child: Text(
+            message,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }
