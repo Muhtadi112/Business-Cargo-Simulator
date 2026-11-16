@@ -139,6 +139,17 @@ class AppState extends ChangeNotifier {
     showToast('Identitas perusahaan berhasil diperbarui.');
   }
 
+  Future<void> resetProgress() async {
+    _ticker?.cancel();
+    _company = null;
+    _vehicles = <Vehicle>[];
+    _contracts = <CargoContract>[];
+    _selectedTab = 0;
+    await _saveService.resetGame();
+    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
+    showToast('Progres lokal berhasil direset.');
+  }
+
   void setTab(int index) {
     if (index < 0 || index > 6) {
       throw RangeError.range(index, 0, 6, 'index');
