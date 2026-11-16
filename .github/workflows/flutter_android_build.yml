@@ -167,7 +167,7 @@ jobs:
               else:
                   indent = "        " if prop == "applicationId" else "    "
                   statement = prop + ' = "' + value + '"' if kotlin else prop + ' "' + value + '"'
-                  section += "\n" + indent + statement + "\n"
+                  section = source[start:end] + "\n" + indent + statement + "\n" + source[end:end+1]
               return source[:start] + section + source[end+1:]
 
           is_kotlin = gradle.suffix == ".kts"
