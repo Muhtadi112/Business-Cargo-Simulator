@@ -38,3 +38,7 @@ abstract final class AppFormatters {
   static String dateTime(DateTime value) =>
       DateFormat('dd MMM yyyy, HH:mm').format(value.toLocal());
 }
+
+abstract final class GameFormatters {
+  static String currency(num value) => AppFormatters.money(value);
+}
