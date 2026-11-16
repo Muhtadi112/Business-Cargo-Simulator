@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test-and-build:
@@ -16,6 +16,35 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Automatically increment Android version code
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("pubspec.yaml")
+          content = path.read_text()
+          match = re.search(r"(?m)^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$", content)
+          if not match:
+              raise SystemExit("Format version di pubspec.yaml harus x.y.z+code.")
+
+          version_name, version_code = match.groups()
+          next_code = int(version_code) + 1
+          updated = content[:match.start()] + f"version: {version_name}+{next_code}" + content[match.end():]
+          path.write_text(updated)
+          print(f"Android version: {version_name}+{next_code}")
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bump Android version code [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
 
       - name: Set up Java
         uses: actions/setup-java@v4
