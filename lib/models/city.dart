@@ -172,6 +172,10 @@ abstract final class CityCatalog {
   static List<CityNode> get starterHubs =>
       cities.where((city) => city.isStarterHub).toList(growable: false);
 
+  static List<CityNode> get starterCities => starterHubs;
+
+  static List<CityNode> get allCities => cities;
+
   static List<CityNode> unlockedBy(List<String> unlockedCityIds) =>
       cities
           .where((city) => unlockedCityIds.contains(city.id))
