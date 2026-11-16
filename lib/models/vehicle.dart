@@ -30,7 +30,7 @@ class VehicleCatalogEntry {
 }
 
 abstract final class VehicleCatalog {
-  static const List<VehicleCatalogEntry> entries = <VehicleCatalogEntry>[
+  static const List<VehicleCatalogEntry> catalog = <VehicleCatalogEntry>[
     VehicleCatalogEntry(
       tier: VehicleTier.lightVan,
       name: 'Light Delivery Van',
@@ -73,8 +73,10 @@ abstract final class VehicleCatalog {
     ),
   ];
 
+  static List<VehicleCatalogEntry> get entries => catalog;
+
   static VehicleCatalogEntry forTier(VehicleTier tier) =>
-      entries.firstWhere((entry) => entry.tier == tier);
+      catalog.firstWhere((entry) => entry.tier == tier);
 }
 
 class Vehicle {
