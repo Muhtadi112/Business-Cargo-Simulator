@@ -35,7 +35,7 @@ abstract final class VehicleCatalog {
       tier: VehicleTier.lightVan,
       name: 'Light Delivery Van',
       purchasePrice: 12000,
-      cargoCapacityKg: 1150,
+      cargoCapacityKg: 1200,
       maxSpeedKmh: 110,
       fuelCapacityLiters: 80,
       fuelConsumptionPer100Km: 10,
