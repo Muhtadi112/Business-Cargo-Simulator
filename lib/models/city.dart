@@ -1,334 +1,197 @@
 import 'dart:math' as math;
-
 class CityNode {
-  const CityNode({
-    required this.id,
-    required this.name,
-    required this.countryCode,
-    required this.countryName,
-    required this.region,
-    required this.mapX,
-    required this.mapY,
-    required this.latitude,
-    required this.longitude,
-    required this.unlockCost,
-    required this.isStarterHub,
-  });
-
-  final String id;
-  final String name;
-  final String countryCode;
-  final String countryName;
-  final String region;
-  final double mapX;
-  final double mapY;
-  final double latitude;
-  final double longitude;
-  final double unlockCost;
-  final bool isStarterHub;
-
-  static double distanceKmBetween(
-    double latitude1,
-    double longitude1,
-    double latitude2,
-    double longitude2,
-  ) {
-    const earthRadiusKm = 6371.0088;
-    final lat1 = _degreesToRadians(latitude1);
-    final lat2 = _degreesToRadians(latitude2);
-    final deltaLat = _degreesToRadians(latitude2 - latitude1);
-    final deltaLon = _degreesToRadians(longitude2 - longitude1);
-    final a = math.pow(math.sin(deltaLat / 2), 2) +
-        math.cos(lat1) *
-            math.cos(lat2) *
-            math.pow(math.sin(deltaLon / 2), 2);
-    final boundedA = a.clamp(0.0, 1.0);
-    final centralAngle =
-        2 * math.atan2(math.sqrt(boundedA), math.sqrt(1 - boundedA));
-    return earthRadiusKm * centralAngle;
-  }
-
-  static double _degreesToRadians(double degrees) => degrees * math.pi / 180;
+ const CityNode({required this.id,required this.name,required this.countryCode,required this.countryName,required this.region,required this.mapX,required this.mapY,required this.latitude,required this.longitude,required this.unlockCost,required this.isStarterHub,required this.tier});
+ final String id,name,countryCode,countryName,region;
+ final double mapX,mapY,latitude,longitude,unlockCost;
+ final bool isStarterHub; final int tier;
+ static double distanceKmBetween(double a,double b,double c,double d){
+  const radius=6371.0088; final p1=a*math.pi/180,p2=c*math.pi/180,dp=(c-a)*math.pi/180,dl=(d-b)*math.pi/180;
+  final h=math.pow(math.sin(dp/2),2)+math.cos(p1)*math.cos(p2)*math.pow(math.sin(dl/2),2);
+  final bounded=h.clamp(0.0,1.0);return radius*2*math.atan2(math.sqrt(bounded),math.sqrt(1-bounded));
+ }
 }
-
+CityNode _city(String name,String code,String country,String region,double lat,double lon,int tier,bool starter){
+ final id=name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'),'_').replaceAll(RegExp(r'^_|_$'),'');
+ return CityNode(id:id,name:name,countryCode:code,countryName:country,region:region,mapX:(lon+180)/360,mapY:(90-lat)/180,latitude:lat,longitude:lon,unlockCost:starter?0:tier==2?26000:12000,isStarterHub:starter,tier:tier);
+}
 abstract final class CityCatalog {
-  static const List<CityNode> cities = <CityNode>[
-    CityNode(
-      id: 'jakarta',
-      name: 'Jakarta',
-      countryCode: 'ID',
-      countryName: 'Indonesia',
-      region: 'Southeast Asia',
-      mapX: 0.78,
-      mapY: 0.67,
-      latitude: -6.2088,
-      longitude: 106.8456,
-      unlockCost: 0,
-      isStarterHub: true,
-    ),
-    CityNode(
-      id: 'singapore',
-      name: 'Singapore',
-      countryCode: 'SG',
-      countryName: 'Singapore',
-      region: 'Southeast Asia',
-      mapX: 0.80,
-      mapY: 0.72,
-      latitude: 1.3521,
-      longitude: 103.8198,
-      unlockCost: 0,
-      isStarterHub: true,
-    ),
-    CityNode(
-      id: 'kuala_lumpur',
-      name: 'Kuala Lumpur',
-      countryCode: 'MY',
-      countryName: 'Malaysia',
-      region: 'Southeast Asia',
-      mapX: 0.78,
-      mapY: 0.70,
-      latitude: 3.1390,
-      longitude: 101.6869,
-      unlockCost: 18000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'tokyo',
-      name: 'Tokyo',
-      countryCode: 'JP',
-      countryName: 'Japan',
-      region: 'East Asia',
-      mapX: 0.88,
-      mapY: 0.40,
-      latitude: 35.6762,
-      longitude: 139.6503,
-      unlockCost: 0,
-      isStarterHub: true,
-    ),
-    CityNode(
-      id: 'dubai',
-      name: 'Dubai',
-      countryCode: 'AE',
-      countryName: 'United Arab Emirates',
-      region: 'Middle East',
-      mapX: 0.57,
-      mapY: 0.48,
-      latitude: 25.2048,
-      longitude: 55.2708,
-      unlockCost: 0,
-      isStarterHub: true,
-    ),
-    CityNode(
-      id: 'rotterdam',
-      name: 'Rotterdam',
-      countryCode: 'NL',
-      countryName: 'Netherlands',
-      region: 'Europe',
-      mapX: 0.48,
-      mapY: 0.27,
-      latitude: 51.9244,
-      longitude: 4.4777,
-      unlockCost: 0,
-      isStarterHub: true,
-    ),
-    CityNode(
-      id: 'los_angeles',
-      name: 'Los Angeles',
-      countryCode: 'US',
-      countryName: 'United States',
-      region: 'North America',
-      mapX: 0.15,
-      mapY: 0.38,
-      latitude: 34.0522,
-      longitude: -118.2437,
-      unlockCost: 0,
-      isStarterHub: true,
-    ),
-    CityNode(
-      id: 'sydney',
-      name: 'Sydney',
-      countryCode: 'AU',
-      countryName: 'Australia',
-      region: 'Oceania',
-      mapX: 0.91,
-      mapY: 0.83,
-      latitude: -33.8688,
-      longitude: 151.2093,
-      unlockCost: 28000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'london',
-      name: 'London',
-      countryCode: 'GB',
-      countryName: 'United Kingdom',
-      region: 'Europe',
-      mapX: 0.455,
-      mapY: 0.255,
-      latitude: 51.5072,
-      longitude: -0.1276,
-      unlockCost: 32000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'new_york',
-      name: 'New York',
-      countryCode: 'US',
-      countryName: 'United States',
-      region: 'North America',
-      mapX: 0.245,
-      mapY: 0.305,
-      latitude: 40.7128,
-      longitude: -74.0060,
-      unlockCost: 36000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'sao_paulo',
-      name: 'Sao Paulo',
-      countryCode: 'BR',
-      countryName: 'Brazil',
-      region: 'South America',
-      mapX: 0.255,
-      mapY: 0.675,
-      latitude: -23.5505,
-      longitude: -46.6333,
-      unlockCost: 42000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'bangkok',
-      name: 'Bangkok',
-      countryCode: 'TH',
-      countryName: 'Thailand',
-      region: 'Southeast Asia',
-      mapX: 0.755,
-      mapY: 0.615,
-      latitude: 13.7563,
-      longitude: 100.5018,
-      unlockCost: 22000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'hong_kong',
-      name: 'Hong Kong',
-      countryCode: 'HK',
-      countryName: 'Hong Kong',
-      region: 'East Asia',
-      mapX: 0.837,
-      mapY: 0.535,
-      latitude: 22.3193,
-      longitude: 114.1694,
-      unlockCost: 30000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'mumbai',
-      name: 'Mumbai',
-      countryCode: 'IN',
-      countryName: 'India',
-      region: 'South Asia',
-      mapX: 0.675,
-      mapY: 0.485,
-      latitude: 19.0760,
-      longitude: 72.8777,
-      unlockCost: 27000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'sukabumi',
-      name: 'Sukabumi',
-      countryCode: 'ID',
-      countryName: 'Indonesia',
-      region: 'West Java',
-      mapX: 0.783,
-      mapY: 0.704,
-      latitude: -6.9277,
-      longitude: 106.9299,
-      unlockCost: 9000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'bandung',
-      name: 'Bandung',
-      countryCode: 'ID',
-      countryName: 'Indonesia',
-      region: 'West Java',
-      mapX: 0.790,
-      mapY: 0.696,
-      latitude: -6.9175,
-      longitude: 107.6191,
-      unlockCost: 11000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'surabaya',
-      name: 'Surabaya',
-      countryCode: 'ID',
-      countryName: 'Indonesia',
-      region: 'East Java',
-      mapX: 0.817,
-      mapY: 0.704,
-      latitude: -7.2575,
-      longitude: 112.7521,
-      unlockCost: 16000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'pontianak',
-      name: 'Pontianak',
-      countryCode: 'ID',
-      countryName: 'Indonesia',
-      region: 'West Kalimantan',
-      mapX: 0.777,
-      mapY: 0.658,
-      latitude: -0.0263,
-      longitude: 109.3425,
-      unlockCost: 13000,
-      isStarterHub: false,
-    ),
-    CityNode(
-      id: 'makassar',
-      name: 'Makassar',
-      countryCode: 'ID',
-      countryName: 'Indonesia',
-      region: 'South Sulawesi',
-      mapX: 0.839,
-      mapY: 0.700,
-      latitude: -5.1477,
-      longitude: 119.4327,
-      unlockCost: 15000,
-      isStarterHub: false,
-    ),
-  ];
-  
-  static CityNode byId(String id) =>
-      cities.firstWhere((city) => city.id == id);
-
-  static CityNode? findById(String id) {
-    for (final city in cities) {
-      if (city.id == id) return city;
-    }
-    return null;
-  }
-
-  static List<CityNode> get starterHubs =>
-      cities.where((city) => city.isStarterHub).toList(growable: false);
-
-  static List<CityNode> get starterCities => starterHubs;
-
-  static List<CityNode> get allCities => cities;
-
-  static List<CityNode> unlockedBy(List<String> unlockedCityIds) =>
-      cities
-          .where((city) => unlockedCityIds.contains(city.id))
-          .toList(growable: false);
-
-  static double distanceBetween(CityNode origin, CityNode destination) =>
-      CityNode.distanceKmBetween(
-        origin.latitude,
-        origin.longitude,
-        destination.latitude,
-        destination.longitude,
-      );
+ static final List<CityNode> cities=<CityNode>[
+    _city('Jakarta','ID',"Indonesia",'Asia Tenggara',-6.2088,106.8456,1,true),
+    _city('Surabaya','ID',"Indonesia",'Asia Tenggara',-7.2575,112.7521,2,false),
+    _city('Bandung','ID',"Indonesia",'Asia Tenggara',-6.9175,107.6191,3,false),
+    _city('Medan','ID',"Indonesia",'Asia Tenggara',3.5952,98.6722,2,false),
+    _city('Makassar','ID',"Indonesia",'Asia Tenggara',-5.1477,119.4327,2,false),
+    _city('Semarang','ID',"Indonesia",'Asia Tenggara',-6.9667,110.4167,3,false),
+    _city('Palembang','ID',"Indonesia",'Asia Tenggara',-2.9761,104.7754,3,false),
+    _city('Balikpapan','ID',"Indonesia",'Asia Tenggara',-1.2379,116.8529,3,false),
+    _city('Pontianak','ID',"Indonesia",'Asia Tenggara',-0.0263,109.3425,3,false),
+    _city('Manado','ID',"Indonesia",'Asia Tenggara',1.4748,124.8421,3,false),
+    _city('Denpasar','ID',"Indonesia",'Asia Tenggara',-8.6705,115.2126,3,false),
+    _city('Jayapura','ID',"Indonesia",'Asia Tenggara',-2.5916,140.669,3,false),
+    _city('Sukabumi','ID',"Indonesia",'Asia Tenggara',-6.9277,106.9299,3,false),
+    _city('Singapore','SG',"Singapore",'Asia Tenggara',1.3521,103.8198,1,true),
+    _city('Kuala Lumpur','MY',"Malaysia",'Asia Tenggara',3.139,101.6869,1,true),
+    _city('Penang','MY',"Malaysia",'Asia Tenggara',5.4141,100.3288,2,false),
+    _city('Johor Bahru','MY',"Malaysia",'Asia Tenggara',1.4927,103.7414,3,false),
+    _city('Bangkok','TH',"Thailand",'Asia Tenggara',13.7563,100.5018,1,false),
+    _city('Laem Chabang','TH',"Thailand",'Asia Tenggara',13.0907,100.8833,2,false),
+    _city('Ho Chi Minh City','VN',"Vietnam",'Asia Tenggara',10.8231,106.6297,1,false),
+    _city('Hanoi','VN',"Vietnam",'Asia Tenggara',21.0278,105.8342,2,false),
+    _city('Manila','PH',"Philippines",'Asia Tenggara',14.5995,120.9842,1,false),
+    _city('Cebu','PH',"Philippines",'Asia Tenggara',10.3157,123.8854,2,false),
+    _city('Yangon','MM',"Myanmar",'Asia Tenggara',16.8661,96.1951,2,false),
+    _city('Phnom Penh','KH',"Cambodia",'Asia Tenggara',11.5564,104.9282,2,false),
+    _city('Bandar Seri Begawan','BN',"Brunei",'Asia Tenggara',4.9031,114.9398,3,false),
+    _city('Dili','TL',"Timor-Leste",'Asia Tenggara',-8.5569,125.5603,3,false),
+    _city('Tokyo','JP',"Japan",'Asia Timur',35.6762,139.6503,1,true),
+    _city('Yokohama','JP',"Japan",'Asia Timur',35.4437,139.638,2,false),
+    _city('Osaka','JP',"Japan",'Asia Timur',34.6937,135.5023,2,false),
+    _city('Nagoya','JP',"Japan",'Asia Timur',35.1815,136.9066,3,false),
+    _city('Busan','KR',"South Korea",'Asia Timur',35.1796,129.0756,2,false),
+    _city('Incheon','KR',"South Korea",'Asia Timur',37.4563,126.7052,2,false),
+    _city('Seoul','KR',"South Korea",'Asia Timur',37.5665,126.978,1,false),
+    _city('Shanghai','CN',"China",'Asia Timur',31.2304,121.4737,1,false),
+    _city('Ningbo','CN',"China",'Asia Timur',29.8683,121.544,2,false),
+    _city('Shenzhen','CN',"China",'Asia Timur',22.5431,114.0579,1,false),
+    _city('Guangzhou','CN',"China",'Asia Timur',23.1291,113.2644,2,false),
+    _city('Hong Kong','HK',"Hong Kong",'Asia Timur',22.3193,114.1694,1,true),
+    _city('Beijing','CN',"China",'Asia Timur',39.9042,116.4074,2,false),
+    _city('Tianjin','CN',"China",'Asia Timur',39.0842,117.201,2,false),
+    _city('Taipei','TW',"Taiwan",'Asia Timur',25.033,121.5654,2,false),
+    _city('Kaohsiung','TW',"Taiwan",'Asia Timur',22.6273,120.3014,2,false),
+    _city('Mumbai','IN',"India",'Asia Selatan',19.076,72.8777,1,false),
+    _city('Chennai','IN',"India",'Asia Selatan',13.0827,80.2707,2,false),
+    _city('Kolkata','IN',"India",'Asia Selatan',22.5726,88.3639,2,false),
+    _city('New Delhi','IN',"India",'Asia Selatan',28.6139,77.209,2,false),
+    _city('Karachi','PK',"Pakistan",'Asia Selatan',24.8607,67.0011,2,false),
+    _city('Colombo','LK',"Sri Lanka",'Asia Selatan',6.9271,79.8612,2,false),
+    _city('Dhaka','BD',"Bangladesh",'Asia Selatan',23.8103,90.4125,2,false),
+    _city('Dubai','AE',"United Arab Emirates",'Timur Tengah',25.2048,55.2708,1,true),
+    _city('Abu Dhabi','AE',"United Arab Emirates",'Timur Tengah',24.4539,54.3773,2,false),
+    _city('Jebel Ali','AE',"United Arab Emirates",'Timur Tengah',24.9857,55.0272,2,false),
+    _city('Riyadh','SA',"Saudi Arabia",'Timur Tengah',24.7136,46.6753,2,false),
+    _city('Jeddah','SA',"Saudi Arabia",'Timur Tengah',21.4858,39.1925,2,false),
+    _city('Doha','QA',"Qatar",'Timur Tengah',25.2854,51.531,2,false),
+    _city('Muscat','OM',"Oman",'Timur Tengah',23.588,58.3829,2,false),
+    _city('Kuwait City','KW',"Kuwait",'Timur Tengah',29.3759,47.9774,2,false),
+    _city('Istanbul','TR',"Turkey",'Timur Tengah',41.0082,28.9784,1,false),
+    _city('Ankara','TR',"Turkey",'Timur Tengah',39.9334,32.8597,2,false),
+    _city('Almaty','KZ',"Kazakhstan",'Asia Tengah',43.2383,76.945,2,false),
+    _city('Tashkent','UZ',"Uzbekistan",'Asia Tengah',41.2995,69.2401,2,false),
+    _city('Rotterdam','NL',"Netherlands",'Eropa',51.9244,4.4777,1,true),
+    _city('Amsterdam','NL',"Netherlands",'Eropa',52.3676,4.9041,2,false),
+    _city('Antwerp','BE',"Belgium",'Eropa',51.2194,4.4025,2,false),
+    _city('Hamburg','DE',"Germany",'Eropa',53.5511,9.9937,2,false),
+    _city('Bremen','DE',"Germany",'Eropa',53.0793,8.8017,3,false),
+    _city('Frankfurt','DE',"Germany",'Eropa',50.1109,8.6821,2,false),
+    _city('Berlin','DE',"Germany",'Eropa',52.52,13.405,2,false),
+    _city('Munich','DE',"Germany",'Eropa',48.1351,11.582,3,false),
+    _city('London','GB',"United Kingdom",'Eropa',51.5072,-0.1276,1,true),
+    _city('Felixstowe','GB',"United Kingdom",'Eropa',51.954,1.351,2,false),
+    _city('Paris','FR',"France",'Eropa',48.8566,2.3522,1,false),
+    _city('Marseille','FR',"France",'Eropa',43.2965,5.3698,2,false),
+    _city('Le Havre','FR',"France",'Eropa',49.4944,0.1079,2,false),
+    _city('Madrid','ES',"Spain",'Eropa',40.4168,-3.7038,2,false),
+    _city('Barcelona','ES',"Spain",'Eropa',41.3874,2.1686,2,false),
+    _city('Valencia','ES',"Spain",'Eropa',39.4699,-0.3763,2,false),
+    _city('Milan','IT',"Italy",'Eropa',45.4642,9.19,2,false),
+    _city('Genoa','IT',"Italy",'Eropa',44.4056,8.9463,2,false),
+    _city('Rome','IT',"Italy",'Eropa',41.9028,12.4964,2,false),
+    _city('Zurich','CH',"Switzerland",'Eropa',47.3769,8.5417,2,false),
+    _city('Vienna','AT',"Austria",'Eropa',48.2082,16.3738,2,false),
+    _city('Warsaw','PL',"Poland",'Eropa',52.2297,21.0122,2,false),
+    _city('Gdansk','PL',"Poland",'Eropa',54.352,18.6466,2,false),
+    _city('Prague','CZ',"Czechia",'Eropa',50.0755,14.4378,2,false),
+    _city('Stockholm','SE',"Sweden",'Eropa',59.3293,18.0686,2,false),
+    _city('Oslo','NO',"Norway",'Eropa',59.9139,10.7522,2,false),
+    _city('Copenhagen','DK',"Denmark",'Eropa',55.6761,12.5683,2,false),
+    _city('Helsinki','FI',"Finland",'Eropa',60.1699,24.9384,2,false),
+    _city('Athens','GR',"Greece",'Eropa',37.9838,23.7275,2,false),
+    _city('Piraeus','GR',"Greece",'Eropa',37.942,23.6465,2,false),
+    _city('Lisbon','PT',"Portugal",'Eropa',38.7223,-9.1393,2,false),
+    _city('Los Angeles','US',"United States",'Amerika Utara',34.0522,-118.2437,1,true),
+    _city('Long Beach','US',"United States",'Amerika Utara',33.7701,-118.1937,2,false),
+    _city('New York','US',"United States",'Amerika Utara',40.7128,-74.006,1,true),
+    _city('Newark','US',"United States",'Amerika Utara',40.7357,-74.1724,2,false),
+    _city('Savannah','US',"United States",'Amerika Utara',32.0809,-81.0912,2,false),
+    _city('Houston','US',"United States",'Amerika Utara',29.7604,-95.3698,2,false),
+    _city('Miami','US',"United States",'Amerika Utara',25.7617,-80.1918,2,false),
+    _city('Chicago','US',"United States",'Amerika Utara',41.8781,-87.6298,2,false),
+    _city('Seattle','US',"United States",'Amerika Utara',47.6062,-122.3321,2,false),
+    _city('San Francisco','US',"United States",'Amerika Utara',37.7749,-122.4194,2,false),
+    _city('Vancouver','CA',"Canada",'Amerika Utara',49.2827,-123.1207,2,false),
+    _city('Toronto','CA',"Canada",'Amerika Utara',43.6532,-79.3832,2,false),
+    _city('Montreal','CA',"Canada",'Amerika Utara',45.5019,-73.5674,2,false),
+    _city('Mexico City','MX',"Mexico",'Amerika Tengah',19.4326,-99.1332,2,false),
+    _city('Monterrey','MX',"Mexico",'Amerika Tengah',25.6866,-100.3161,2,false),
+    _city('Manzanillo','MX',"Mexico",'Amerika Tengah',19.0544,-104.3188,2,false),
+    _city('Panama City','PA',"Panama",'Amerika Tengah',8.9824,-79.5199,2,false),
+    _city('Colon','PA',"Panama",'Amerika Tengah',9.3547,-79.9001,2,false),
+    _city('Sao Paulo','BR',"Brazil",'Amerika Selatan',-23.5505,-46.6333,1,true),
+    _city('Santos','BR',"Brazil",'Amerika Selatan',-23.9608,-46.3336,2,false),
+    _city('Rio de Janeiro','BR',"Brazil",'Amerika Selatan',-22.9068,-43.1729,2,false),
+    _city('Buenos Aires','AR',"Argentina",'Amerika Selatan',-34.6037,-58.3816,1,false),
+    _city('Santiago','CL',"Chile",'Amerika Selatan',-33.4489,-70.6693,2,false),
+    _city('Valparaiso','CL',"Chile",'Amerika Selatan',-33.0472,-71.6127,2,false),
+    _city('Lima','PE',"Peru",'Amerika Selatan',-12.0464,-77.0428,2,false),
+    _city('Callao','PE',"Peru",'Amerika Selatan',-12.0566,-77.1181,2,false),
+    _city('Bogota','CO',"Colombia",'Amerika Selatan',4.711,-74.0721,2,false),
+    _city('Cartagena','CO',"Colombia",'Amerika Selatan',10.391,-75.4794,2,false),
+    _city('Montevideo','UY',"Uruguay",'Amerika Selatan',-34.9011,-56.1645,2,false),
+    _city('Cairo','EG',"Egypt",'Afrika',30.0444,31.2357,1,false),
+    _city('Alexandria','EG',"Egypt",'Afrika',31.2001,29.9187,2,false),
+    _city('Port Said','EG',"Egypt",'Afrika',31.2653,32.3019,2,false),
+    _city('Casablanca','MA',"Morocco",'Afrika',33.5731,-7.5898,2,false),
+    _city('Tangier','MA',"Morocco",'Afrika',35.7595,-5.834,2,false),
+    _city('Lagos','NG',"Nigeria",'Afrika',6.5244,3.3792,1,false),
+    _city('Accra','GH',"Ghana",'Afrika',5.6037,-0.187,2,false),
+    _city('Abidjan','CI',"Cote d'Ivoire",'Afrika',5.36,-4.0083,2,false),
+    _city('Nairobi','KE',"Kenya",'Afrika',-1.2921,36.8219,1,false),
+    _city('Mombasa','KE',"Kenya",'Afrika',-4.0435,39.6682,2,false),
+    _city('Dar es Salaam','TZ',"Tanzania",'Afrika',-6.7924,39.2083,2,false),
+    _city('Johannesburg','ZA',"South Africa",'Afrika',-26.2041,28.0473,1,true),
+    _city('Durban','ZA',"South Africa",'Afrika',-29.8587,31.0218,2,false),
+    _city('Cape Town','ZA',"South Africa",'Afrika',-33.9249,18.4241,2,false),
+    _city('Addis Ababa','ET',"Ethiopia",'Afrika',9.03,38.74,2,false),
+    _city('Sydney','AU',"Australia",'Oseania',-33.8688,151.2093,1,true),
+    _city('Melbourne','AU',"Australia",'Oseania',-37.8136,144.9631,2,false),
+    _city('Brisbane','AU',"Australia",'Oseania',-27.4698,153.0251,2,false),
+    _city('Perth','AU',"Australia",'Oseania',-31.9505,115.8605,2,false),
+    _city('Auckland','NZ',"New Zealand",'Oseania',-36.8509,174.7645,1,false),
+    _city('Tauranga','NZ',"New Zealand",'Oseania',-37.6878,176.1651,2,false),
+    _city('Port Moresby','PG',"Papua New Guinea",'Oseania',-9.4438,147.1803,2,false),
+    _city('Moscow','RU',"Russia",'Eropa',55.7558,37.6173,1,false),
+    _city('St Petersburg','RU',"Russia",'Eropa',59.9311,30.3609,2,false),
+    _city('Dublin','IE',"Ireland",'Eropa',53.3498,-6.2603,2,false),
+    _city('Edinburgh','GB',"United Kingdom",'Eropa',55.9533,-3.1883,3,false),
+    _city('Brussels','BE',"Belgium",'Eropa',50.8503,4.3517,2,false),
+    _city('Budapest','HU',"Hungary",'Eropa',47.4979,19.0402,2,false),
+    _city('Bucharest','RO',"Romania",'Eropa',44.4268,26.1025,2,false),
+    _city('Belgrade','RS',"Serbia",'Eropa',44.7866,20.4489,2,false),
+    _city('Baku','AZ',"Azerbaijan",'Asia Tengah',40.4093,49.8671,2,false),
+    _city('Kabul','AF',"Afghanistan",'Asia Tengah',34.5553,69.2075,3,false),
+    _city('Kathmandu','NP',"Nepal",'Asia Selatan',27.7172,85.324,2,false),
+    _city('Lahore','PK',"Pakistan",'Asia Selatan',31.5204,74.3587,2,false),
+    _city('Chittagong','BD',"Bangladesh",'Asia Selatan',22.3569,91.7832,2,false),
+    _city('Atlanta','US',"United States",'Amerika Utara',33.749,-84.388,2,false),
+    _city('Dallas','US',"United States",'Amerika Utara',32.7767,-96.797,2,false),
+    _city('Boston','US',"United States",'Amerika Utara',42.3601,-71.0589,2,false),
+    _city('San Diego','US',"United States",'Amerika Utara',32.7157,-117.1611,3,false),
+    _city('Quito','EC',"Ecuador",'Amerika Selatan',-0.1807,-78.4678,2,false),
+    _city('Guayaquil','EC',"Ecuador",'Amerika Selatan',-2.171,-79.9224,2,false),
+    _city('La Paz','BO',"Bolivia",'Amerika Selatan',-16.4897,-68.1193,2,false),
+    _city('Kigali','RW',"Rwanda",'Afrika',-1.9441,30.0619,2,false),
+    _city('Lusaka','ZM',"Zambia",'Afrika',-15.3875,28.3228,2,false),
+    _city('Maputo','MZ',"Mozambique",'Afrika',-25.9692,32.5732,2,false),
+    _city('Tunis','TN',"Tunisia",'Afrika',36.8065,10.1815,2,false),
+    _city('Adelaide','AU',"Australia",'Oseania',-34.9285,138.6007,2,false),
+    _city('Christchurch','NZ',"New Zealand",'Oseania',-43.5321,172.6362,2,false),
+ ];
+ static CityNode byId(String id)=>cities.firstWhere((c)=>c.id==id);
+ static CityNode? findById(String id){for(final c in cities){if(c.id==id)return c;}return null;}
+ static List<CityNode> get starterHubs=>starterCities;
+ static List<CityNode> get starterCities=>cities.where((c)=>c.isStarterHub).toList(growable:false);
+ static List<CityNode> get allCities=>cities;
+ static List<CityNode> unlockedBy(List<String> ids)=>cities.where((c)=>ids.contains(c.id)).toList(growable:false);
+ static double distanceBetween(CityNode a,CityNode b)=>CityNode.distanceKmBetween(a.latitude,a.longitude,b.latitude,b.longitude);
 }

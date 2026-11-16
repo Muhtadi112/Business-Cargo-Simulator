@@ -13,28 +13,18 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMixin {
   static const double _worldWidth = 2200;
   static const double _worldHeight = 1100;
   static const double _initialScale = 1.35;
-
-  static const Set<String> _worldHubs = {
-    'Jakarta',
-    'Singapore',
-    'Tokyo',
-    'Dubai',
-    'Rotterdam',
-    'London',
-    'New York',
-    'Los Angeles',
-    'Sao Paulo',
-    'Sydney',
-  };
 
   final TransformationController _transformController =
       TransformationController();
   double _currentScale = _initialScale;
   bool _cameraInitialized = false;
+  CityNode? _selectedCity;
+  AnimationController? _cameraAnimation;
+  Offset? _lastCullOrigin;
 
   @override
   void initState() {
@@ -44,6 +34,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    _cameraAnimation?.dispose();
     _transformController
       ..removeListener(_handleTransformChanged)
       ..dispose();
@@ -52,10 +43,16 @@ class _MapScreenState extends State<MapScreen> {
 
   void _handleTransformChanged() {
     final scale = _transformController.value.getMaxScaleOnAxis();
-    final wasRegional = _currentScale >= 1.1;
-    final isRegional = scale >= 1.1;
+    final previousScale = _currentScale;
     _currentScale = scale;
-    if (wasRegional != isRegional && mounted) {
+    final inverse = Matrix4.inverted(_transformController.value);
+    final origin = MatrixUtils.transformPoint(inverse, Offset.zero);
+    final movedEnough = _lastCullOrigin == null ||
+        (origin - _lastCullOrigin!).distance >= 30;
+    final crossedLod = ((previousScale < 0.95) != (scale < 0.95)) ||
+        ((previousScale < 1.65) != (scale < 1.65));
+    if ((movedEnough || crossedLod) && mounted) {
+      _lastCullOrigin = origin;
       setState(() {});
     }
   }
@@ -81,6 +78,7 @@ class _MapScreenState extends State<MapScreen> {
       ..scale(_initialScale);
     _currentScale = _initialScale;
     _cameraInitialized = true;
+    if (mounted) setState(() {});
   }
 
   @override
@@ -109,9 +107,17 @@ class _MapScreenState extends State<MapScreen> {
     final mission = missions[missionIndex < 0 ? missions.length - 1 : missionIndex];
 
     final cities = CityCatalog.allCities;
-    final visibleCities = _currentScale < 1.1
-        ? cities.where((city) => _worldHubs.contains(city.name)).toList()
-        : cities;
+    final visibleRect = _visibleWorldRect(context);
+    final visibleCities = cities.where((city) {
+      final tierVisible = _currentScale < 0.95
+          ? city.tier == 1
+          : _currentScale < 1.65
+              ? city.tier <= 2
+              : city.tier <= 3;
+      if (!tierVisible) return false;
+      final point = _cityCanvasPoint(city);
+      return visibleRect == null || visibleRect.inflate(55).contains(point);
+    }).toList(growable: false);
 
     return Stack(
       children: [
@@ -159,10 +165,10 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                       Positioned.fill(
-                        child: CustomPaint(painter: WorldMapPainter()),
+                        child: CustomPaint(painter: WorldMapPainter(cityMarkers: visibleCities, contracts: state.contracts)),
                       ),
                       for (final city in visibleCities)
-                        ..._buildCityMarkers(city),
+                        ..._buildCityMarkers(city, visibleCities),
                     ],
                   ),
                 ),
@@ -170,6 +176,24 @@ class _MapScreenState extends State<MapScreen> {
             },
           ),
         ),
+        Positioned(
+          right: 12,
+          top: 62,
+          child: FloatingActionButton.small(
+            heroTag: 'map-city-search',
+            onPressed: _openCitySearch,
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.emerald,
+            child: const Icon(Icons.search),
+          ),
+        ),
+        if (_selectedCity != null)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 112,
+            child: _cityInfoCard(state, _selectedCity!),
+          ),
         Positioned(
           left: 12,
           right: 12,
@@ -243,72 +267,151 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  List<Widget> _buildCityMarkers(CityNode city) {
-    final point = _cityCanvasPoint(city);
-    final x = point.dx;
-    final y = point.dy;
-    final labelOffset = _cityLabelOffsets[city.name] ?? const Offset(10, -18);
-    final isHeadquarters =
-        context.read<AppState>().company?.headquartersCity == city.name;
-    final isMajor = _worldHubs.contains(city.name);
 
+  Rect? _visibleWorldRect(BuildContext context) {
+    if (!_cameraInitialized) return null;
+    final render = context.findRenderObject();
+    if (render is! RenderBox || !render.hasSize) return null;
+    final inverse = Matrix4.inverted(_transformController.value);
+    final viewport = MediaQuery.sizeOf(context);
+    return Rect.fromPoints(
+      MatrixUtils.transformPoint(inverse, Offset.zero),
+      MatrixUtils.transformPoint(inverse, Offset(viewport.width, viewport.height)),
+    );
+  }
+
+  Future<void> _openCitySearch() async {
+    final queryController = TextEditingController();
+    final selected = await showModalBottomSheet<CityNode>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, refresh) {
+          final query = queryController.text.trim().toLowerCase();
+          final results = CityCatalog.allCities.where((city) =>
+            query.isEmpty ||
+            city.name.toLowerCase().contains(query) ||
+            city.countryName.toLowerCase().contains(query) ||
+            (query == 'jepang' && city.countryCode == 'JP') ||
+            city.countryCode.toLowerCase() == query
+          ).take(45).toList(growable: false);
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16,16,16,MediaQuery.viewInsetsOf(context).bottom+16),
+              child: SizedBox(
+                height: MediaQuery.sizeOf(context).height * .72,
+                child: Column(children: [
+                  const Text('CARI KOTA / NEGARA',style:TextStyle(fontWeight:FontWeight.w900)),
+                  const SizedBox(height:12),
+                  TextField(controller:queryController,autofocus:true,onChanged:(_)=>refresh((){}),
+                    decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Jepang, Rotterdam, Makassar...')),
+                  const SizedBox(height:8),
+                  Expanded(child:ListView.builder(itemCount:results.length,itemBuilder:(context,index){
+                    final city=results[index];
+                    return ListTile(dense:true,title:Text(city.name),subtitle:Text('${city.countryName} • ${city.region} • Tier ${city.tier}'),
+                      onTap:()=>Navigator.pop(sheetContext,city));
+                  })),
+                ]),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    queryController.dispose();
+    if (!mounted || selected == null) return;
+    setState(() => _selectedCity = selected);
+    _flyToCity(selected);
+  }
+
+  void _flyToCity(CityNode city) {
+    final point = _cityCanvasPoint(city);
+    final render = context.findRenderObject();
+    final viewport = render is RenderBox ? render.size : const Size(360,700);
+    final target = Matrix4.identity()
+      ..translate(viewport.width/2-point.dx*1.8,viewport.height/2-point.dy*1.8)
+      ..scale(1.8);
+    _cameraAnimation?.dispose();
+    final controller = AnimationController(vsync:this,duration:const Duration(milliseconds:650));
+    _cameraAnimation = controller;
+    final animation = CurvedAnimation(parent:controller,curve:Curves.easeInOutCubic);
+    final tween = Matrix4Tween(begin:_transformController.value,end:target);
+    void listener() { _transformController.value = tween.evaluate(animation); }
+    controller.addListener(listener);
+    controller.addStatusListener((status) {
+      if(status==AnimationStatus.completed) {
+        controller.removeListener(listener);
+        animation.dispose();
+        controller.dispose();
+        if(identical(_cameraAnimation,controller)) _cameraAnimation=null;
+      }
+    });
+    controller.forward();
+  }
+
+  Widget _cityInfoCard(AppState state, CityNode city) {
+    final opened = state.company?.unlockedCityIds.contains(city.id) ?? false;
+    return Container(
+      padding:const EdgeInsets.all(12),
+      decoration:BoxDecoration(color:AppColors.surface,borderRadius:BorderRadius.circular(14),border:Border.all(color:AppColors.emerald.withValues(alpha:.5))),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
+        Row(children:[Expanded(child:Text(city.name,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15))),IconButton(onPressed:()=>setState(()=>_selectedCity=null),icon:const Icon(Icons.close,size:18))]),
+        Text('${city.countryName} • ${city.region} • Tier ${city.tier}',style:const TextStyle(color:AppColors.textSecondary,fontSize:11)),
+        const SizedBox(height:8),
+        Row(children:[
+          Expanded(child:OutlinedButton(onPressed:opened?null:()async{try{await state.unlockCity(city.id);if(mounted)setState((){});}catch(error){state.showToast(error.toString());}},child:Text(opened?'HUB TERBUKA':'BUKA HUB'))),
+          const SizedBox(width:8),
+          Expanded(child:FilledButton(onPressed:opened?()async{await state.refreshContracts();state.showToast('Kontrak jaringan diperbarui.');}:null,child:const Text('BUAT KONTRAK'))),
+        ]),
+      ]),
+    );
+  }
+
+  bool _shouldShowLabel(CityNode city, List<CityNode> visibleCities) {
+    if (_currentScale < 0.95) return false;
+    final point = _cityCanvasPoint(city);
+    final threshold = _currentScale < 1.65 ? 38.0 : 25.0;
+    for (final other in visibleCities) {
+      if (other.id == city.id) continue;
+      final otherPoint = _cityCanvasPoint(other);
+      if ((otherPoint - point).distance >= threshold) continue;
+      if (other.tier < city.tier || (other.tier == city.tier && other.name.compareTo(city.name) < 0)) return false;
+    }
+    return true;
+  }
+
+  List<Widget> _buildCityMarkers(CityNode city, List<CityNode> visibleCities) {
+    final point = _cityCanvasPoint(city);
+    final labelOffset = _cityLabelOffsets[city.name] ?? const Offset(10,-18);
+    final isHeadquarters = context.read<AppState>().company?.headquartersCity == city.name;
+    final isMajor = city.tier == 1;
     return [
       Positioned(
-        left: x - 5,
-        top: y - 5,
-        child: Container(
-          width: isMajor || isHeadquarters ? 10 : 7,
-          height: isMajor || isHeadquarters ? 10 : 7,
-          decoration: BoxDecoration(
-            color: isHeadquarters ? AppColors.gold : AppColors.emerald,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.background, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: (isHeadquarters ? AppColors.gold : AppColors.emerald)
-                    .withValues(alpha: 0.45),
-                blurRadius: 7,
-              ),
-            ],
-          ),
+        left:point.dx-14,top:point.dy-14,width:28,height:28,
+        child:GestureDetector(
+          behavior:HitTestBehavior.opaque,
+          onTap:()=>setState(()=>_selectedCity=city),
+          child:Center(child:Container(width:isMajor||isHeadquarters?10:7,height:isMajor||isHeadquarters?10:7,
+            decoration:BoxDecoration(color:isHeadquarters?AppColors.gold:AppColors.emerald,shape:BoxShape.circle,
+              border:Border.all(color:AppColors.background,width:1.5),
+              boxShadow:[BoxShadow(color:(isHeadquarters?AppColors.gold:AppColors.emerald).withValues(alpha:.45),blurRadius:7)]))),
         ),
       ),
-      Positioned(
-        left: x + labelOffset.dx,
-        top: y + labelOffset.dy,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.background.withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: isHeadquarters
-                  ? AppColors.gold.withValues(alpha: 0.65)
-                  : AppColors.border,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-            child: Text(
-              city.name,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                color: isHeadquarters
-                    ? AppColors.gold
-                    : isMajor
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary,
-                fontSize: isMajor ? 11 : 10,
-                fontWeight: isMajor || isHeadquarters
-                    ? FontWeight.w800
-                    : FontWeight.w600,
-              ),
-            ),
-          ),
+      if (_shouldShowLabel(city, visibleCities))
+        Positioned(
+          left:point.dx+labelOffset.dx,top:point.dy+labelOffset.dy,
+          child:IgnorePointer(child:DecoratedBox(
+            decoration:BoxDecoration(color:AppColors.background.withValues(alpha:.88),borderRadius:BorderRadius.circular(4),border:Border.all(color:isHeadquarters?AppColors.gold.withValues(alpha:.65):AppColors.border)),
+            child:Padding(padding:const EdgeInsets.symmetric(horizontal:5,vertical:3),
+              child:Text(city.name,maxLines:1,softWrap:false,style:TextStyle(
+                color:isHeadquarters?AppColors.gold:isMajor?AppColors.textPrimary:AppColors.textSecondary,
+                fontSize:isMajor?11:9,fontWeight:isMajor||isHeadquarters?FontWeight.w800:FontWeight.w600))),
+          )),
         ),
-      ),
     ];
   }
+
 }
 
 const Map<String, Offset> _cityLabelOffsets = {
@@ -381,8 +484,9 @@ Offset _cityCanvasPoint(CityNode city) => Offset(
     );
 
 class WorldMapPainter extends CustomPainter {
-  const WorldMapPainter({this.contracts = const []});
+  const WorldMapPainter({this.cityMarkers = const [], this.contracts = const []});
 
+  final List<CityNode> cityMarkers;
   final List<CargoContract> contracts;
 
   static const List<(String, String)> _routes = [
@@ -422,7 +526,7 @@ class WorldMapPainter extends CustomPainter {
       ..color = const Color(0x5533E5A0)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4;
-    for (final city in CityCatalog.allCities) {
+    for (final city in cityMarkers) {
       final point = _cityCanvasPoint(city);
       canvas.drawCircle(point, 10, pulsePaint);
       pulsePaint.color = const Color(0x2233E5A0);
@@ -465,7 +569,7 @@ class WorldMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant WorldMapPainter oldDelegate) =>
-      oldDelegate.contracts != contracts;
+      oldDelegate.contracts != contracts || oldDelegate.cityMarkers != cityMarkers;
 }
 
 /// Approximate geographic outlines used only if the Natural Earth raster fails.

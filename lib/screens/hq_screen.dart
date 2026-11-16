@@ -10,7 +10,7 @@ import '../widgets/metric_card.dart';
 
 class HqScreen extends StatefulWidget{const HqScreen({super.key});@override State<HqScreen> createState()=>_HqScreenState();}
 class _HqScreenState extends State<HqScreen>{
- int tab=0;static const labels=['Ringkasan','Jaringan','Riset','Target','Catatan perubahan'];
+ int tab=0;String _networkQuery='';String _networkRegion='Semua';static const labels=['Ringkasan','Jaringan','Riset','Target','Catatan perubahan'];
  String rep(int n)=>n>=90?'Legenda Logistik':n>=75?'Mitra Tepercaya':n>=60?'Operator Andal':n>=40?'Pendatang Baru':'Perlu Pembenahan';
  Future<void> edit()async{
   final s=context.read<AppState>();final c=s.company!;final name=TextEditingController(text:c.name);var icon=c.logoId;var color=c.logoColor;
@@ -44,7 +44,40 @@ class _HqScreenState extends State<HqScreen>{
   MetricCard(label:'Reputasi',value:'${c.reputation}/100',subtitle:rep(c.reputation),icon:Icons.military_tech,iconColor:AppColors.gold),
   MetricCard(label:'Bersih kontrak aktif',value:AppFormatters.money(active),icon:Icons.local_shipping),
  ]);}
- Widget network(AppState s){final c=s.company!;return Column(children:CityCatalog.allCities.map((city){final open=c.unlockedCityIds.contains(city.id);return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:AppColors.surface,borderRadius:BorderRadius.circular(13),border:Border.all(color:open?AppColors.emerald.withValues(alpha:.4):AppColors.border)),child:Row(children:[Icon(open?Icons.location_on:Icons.lock_outline,color:open?AppColors.emerald:AppColors.textSecondary),const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(city.name,style:const TextStyle(fontWeight:FontWeight.w800)),Text('${city.countryName} • ${city.region}',style:const TextStyle(color:AppColors.textSecondary,fontSize:10))])),if(open)const Text('TERBUKA',style:TextStyle(color:AppColors.emerald,fontSize:9,fontWeight:FontWeight.w900))else TextButton(onPressed:()async{try{await s.unlockCity(city.id);}catch(e){if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString()))); }}},child:Text(city.unlockCost==0?'BUKA GRATIS':AppFormatters.money(city.unlockCost)))]));}).toList());}
+
+ Widget network(AppState s){
+  final c=s.company!;
+  const regions=['Semua','Asia Tenggara','Asia Timur','Timur Tengah','Eropa','Amerika','Afrika','Oseania'];
+  final filtered=CityCatalog.allCities.where((city){
+   final q=_networkQuery.toLowerCase();
+   final matches=q.isEmpty||city.name.toLowerCase().contains(q)||city.countryName.toLowerCase().contains(q)||(q=='jepang'&&city.countryCode=='JP');
+   final region=_networkRegion=='Semua'||(_networkRegion=='Amerika'?city.region.startsWith('Amerika'):city.region==_networkRegion);
+   return matches&&region;
+  }).toList();
+  return Column(children:[
+   TextField(onChanged:(v)=>setState(()=>_networkQuery=v),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Cari kota atau negara')),
+   const SizedBox(height:8),
+   SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:regions.map((r)=>Padding(padding:const EdgeInsets.only(right:5),child:ChoiceChip(label:Text(r,style:const TextStyle(fontSize:10)),selected:_networkRegion==r,onSelected:(_)=>setState(()=>_networkRegion=r)))).toList())),
+   const SizedBox(height:10),
+   ...filtered.map((city){
+    final open=c.unlockedCityIds.contains(city.id);
+    return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(12),
+     decoration:BoxDecoration(color:AppColors.surface,borderRadius:BorderRadius.circular(13),border:Border.all(color:open?AppColors.emerald.withValues(alpha:.4):AppColors.border)),
+     child:Row(children:[
+      Icon(open?Icons.location_on:Icons.lock_outline,color:open?AppColors.emerald:AppColors.textSecondary),
+      const SizedBox(width:9),
+      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+       Text(city.name,style:const TextStyle(fontWeight:FontWeight.w800)),
+       Text('${city.countryName} • ${city.region} • Tier ${city.tier}',style:const TextStyle(color:AppColors.textSecondary,fontSize:10)),
+      ])),
+      if(open)const Text('TERBUKA',style:TextStyle(color:AppColors.emerald,fontSize:9,fontWeight:FontWeight.w900))
+      else TextButton(onPressed:()async{try{await s.unlockCity(city.id);}catch(e){if(mounted){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}},child:Text(city.unlockCost==0?'BUKA GRATIS':AppFormatters.money(city.unlockCost))),
+     ]),
+    );
+   }),
+  ]);
+ }
+
  Widget card(IconData icon,String title,String detail,String tag)=>Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:AppColors.surface,borderRadius:BorderRadius.circular(13),border:Border.all(color:AppColors.border)),child:Row(children:[Icon(icon,color:AppColors.emerald),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800)),Text(detail,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(color:AppColors.textSecondary,fontSize:10))])),Text(tag,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:AppColors.emerald,fontSize:9,fontWeight:FontWeight.w900))]));
  Widget research(int level)=>Column(children:[card(Icons.alt_route,'Optimasi Rute','Efisiensi perjalanan dan estimasi waktu.',level>=2?'TERSEDIA':'LEVEL 2'),card(Icons.local_shipping,'Manajemen Armada','Peningkatan kapasitas operasional.',level>=4?'TERSEDIA':'LEVEL 4'),card(Icons.hub,'Pusat Distribusi','Perluas jaringan hub.',level>=7?'TERSEDIA':'LEVEL 7')]);
  Widget targets(int done,int cities) {

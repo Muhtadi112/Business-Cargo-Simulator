@@ -38,6 +38,20 @@ void main() {
       expect(distance, lessThan(910));
     });
 
+    test('contains a global city network with valid tiers and unique IDs', () {
+      final cities = CityCatalog.allCities;
+      expect(cities.length, greaterThanOrEqualTo(150));
+      expect(cities.map((city) => city.id).toSet().length, cities.length);
+      expect(cities.every((city) => city.tier >= 1 && city.tier <= 3), isTrue);
+      expect(cities.every((city) =>
+        city.latitude >= -90 && city.latitude <= 90 &&
+        city.longitude >= -180 && city.longitude <= 180), isTrue);
+      expect(CityCatalog.starterCities.map((city) => city.name), containsAll([
+        'Jakarta','Singapore','Tokyo','Dubai','Rotterdam','London',
+        'New York','Los Angeles','Sao Paulo','Johannesburg','Sydney',
+      ]));
+    });
+
     test('returns zero distance for identical coordinates', () {
       expect(CityNode.distanceKmBetween(0, 0, 0, 0), 0);
     });

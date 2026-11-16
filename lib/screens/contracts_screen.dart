@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../app/app_state.dart';
 import '../app/formatters.dart';
 import '../models/contract.dart';
+import '../models/city.dart';
 import '../theme/app_theme.dart';
 
 class ContractsScreen extends StatefulWidget {
@@ -23,9 +24,24 @@ class _ContractsScreenState extends State<ContractsScreen> {
       all.where((e) => e.status == ContractStatus.completed || e.status == ContractStatus.failed).toList(),
       <CargoContract>[],
     ];
-    final visible = categories[_tab].where((e) =>
-      '${e.originCityName} ${e.destinationCityName} ${e.cargoType.name}'.toLowerCase().contains(_query.toLowerCase())
-    ).toList();
+    final normalizedQuery = _query.trim().toLowerCase();
+    final visible = categories[_tab].where((contract) {
+      if (normalizedQuery.isEmpty) return true;
+      final origin = CityCatalog.findById(contract.originCityId);
+      final destination = CityCatalog.findById(contract.destinationCityId);
+      final searchable = [
+        contract.originCityName,
+        contract.destinationCityName,
+        contract.cargoType.name,
+        origin?.countryName ?? '',
+        destination?.countryName ?? '',
+        origin?.region ?? '',
+        destination?.region ?? '',
+      ].join(' ').toLowerCase();
+      return searchable.contains(normalizedQuery) ||
+          (normalizedQuery == 'jepang' &&
+              (origin?.countryCode == 'JP' || destination?.countryCode == 'JP'));
+    }).toList();
     const labels = ['Tersedia', 'Aktif', 'Riwayat', 'Barang pemain'];
     return ListView(padding: const EdgeInsets.all(13), children: [
       Row(children: List.generate(4, (i) => Expanded(child: Padding(

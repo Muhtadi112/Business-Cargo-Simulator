@@ -26,6 +26,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/maps/
+    - assets/data/
 
 flutter_launcher_icons:
   android: true
