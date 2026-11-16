@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/city.dart';
+import 'formatters.dart';
 import '../models/company.dart';
+import '../models/fuel_system.dart';
+import '../models/research.dart';
 import '../models/contract.dart';
 import '../models/vehicle.dart';
 import '../services/contract_service.dart';
@@ -174,6 +177,9 @@ class AppState extends ChangeNotifier {
     final assignment = _fleetService.assignContract(
       _vehicles[vehicleIndex],
       _contracts[contractIndex],
+      fuelEfficiencyLevel: company.researchLevel('efficientEngines'),
+      loadingCrewLevel: company.researchLevel('loadingCrew'),
+      dispatchSoftwareLevel: company.researchLevel('dispatchSoftware'),
     );
     _vehicles[vehicleIndex] = assignment.vehicle;
     _contracts[contractIndex] = assignment.contract;
@@ -185,6 +191,9 @@ class AppState extends ChangeNotifier {
     final company = _company;
     if (company == null) throw StateError('Perusahaan belum didirikan.');
     final specification = VehicleCatalog.forTier(tier);
+    if (specification.mode == TransportMode.air && !company.airportBranchBuilt) throw StateError('Bangun cabang bandara sebelum membeli pesawat kargo.');
+    if (specification.mode == TransportMode.sea && !company.seaPortBuilt) throw StateError('Bangun pelabuhan laut sebelum membeli kapal kargo.');
+    if (_vehicles.length >= fleetSlots) throw StateError('Slot armada penuh. Upgrade depo atau bangun terminal tambahan.');
     if (company.balance < specification.purchasePrice) {
       throw StateError('Saldo perusahaan tidak mencukupi.');
     }
@@ -226,15 +235,157 @@ class AppState extends ChangeNotifier {
     if (vehicle.status == VehicleStatus.enRoute) {
       throw StateError('Kendaraan yang sedang bertugas tidak bisa diservis.');
     }
-    final cost = _fleetService.calculateRefuelCost(vehicle) +
-        _fleetService.calculateRepairCost(vehicle);
-    if (company.balance < cost) {
-      throw StateError('Saldo tidak cukup untuk isi BBM dan servis.');
+    if (vehicle.mode == TransportMode.sea) {
+      final seaCost = _fleetService.calculateRefuelCost(vehicle) + _fleetService.calculateRepairCost(vehicle);
+      if (company.balance < seaCost) throw StateError('Saldo tidak cukup untuk bunker fuel dan servis kapal.');
+      _vehicles[index] = _fleetService.refuelAndRepair(vehicle);
+      _company = company.copyWith(balance: company.balance - seaCost);
+      await _persist();
+      showToast('Bunker fuel dan kondisi kapal sudah penuh.');
+      return;
     }
+    final fuelType = vehicle.mode == TransportMode.air ? FuelType.jetFuel : FuelType.diesel;
+    final tank = company.fuelSystem.tank(fuelType);
+    if (!tank.isBuilt) throw StateError('Bangun tangki bahan bakar markas terlebih dahulu.');
+    final missingFuel = (vehicle.specifications.fuelCapacityLiters - vehicle.fuel).clamp(0.0, double.infinity).toDouble();
+    if (tank.storedLiters < missingFuel) throw StateError('Stok tangki markas tidak cukup untuk mengisi armada.');
+    final cost = _fleetService.calculateRepairCost(vehicle);
+    if (company.balance < cost) throw StateError('Saldo tidak cukup untuk servis kendaraan.');
     _vehicles[index] = _fleetService.refuelAndRepair(vehicle);
-    _company = company.copyWith(balance: company.balance - cost);
+    _company = company.copyWith(balance: company.balance - cost, fuelSystem: company.fuelSystem.update(tank.consume(missingFuel)));
     await _persist();
     showToast('BBM dan kondisi kendaraan sudah penuh.');
+  }
+
+
+  int get fleetSlots => 12 + (_company == null ? 0 : (_company!.depotLevel - 1) * 8) +
+      (_company?.riverTerminalBuilt == true ? 12 : 0) +
+      (_company?.airportBranchBuilt == true ? 8 : 0) +
+      (_company?.seaPortBuilt == true ? 12 : 0);
+
+  Future<void> upgradeFuelTank(FuelType type) async {
+    final c = _company;
+    if (c == null) throw StateError('Perusahaan belum didirikan.');
+    if (type == FuelType.jetFuel && !c.airportBranchBuilt) throw StateError('Cabang bandara harus dibangun sebelum tangki avtur.');
+    final tank = c.fuelSystem.tank(type);
+    final cost = tank.nextUpgradeCost;
+    if (c.balance < cost) throw StateError('Saldo tidak cukup untuk membangun atau upgrade tangki.');
+    _company = c.copyWith(balance: c.balance - cost, fuelSystem: c.fuelSystem.update(tank.buildOrUpgrade()));
+    await _persist();
+    showToast('${type == FuelType.diesel ? 'Tangki solar' : 'Tangki avtur'} berhasil ${tank.isBuilt ? 'di-upgrade' : 'dibangun'}.');
+  }
+
+  Future<void> purchaseFuel(FuelType type, {double liters = 1000}) async {
+    final c = _company;
+    if (c == null) throw StateError('Perusahaan belum didirikan.');
+    if (type == FuelType.jetFuel && !c.airportBranchBuilt) throw StateError('Cabang bandara belum dibangun.');
+    final tank = c.fuelSystem.tank(type);
+    if (!tank.isBuilt) throw StateError('Bangun tangki terlebih dahulu.');
+    final accepted = (tank.capacityLiters - tank.storedLiters).clamp(0.0, liters).toDouble();
+    if (accepted <= 0) throw StateError('Tangki markas sudah penuh.');
+    final price = type == FuelType.diesel ? 1.25 : 2.30;
+    final cost = accepted * price;
+    if (c.balance < cost) throw StateError('Saldo tidak cukup untuk membeli bahan bakar.');
+    _company = c.copyWith(balance: c.balance - cost, fuelSystem: c.fuelSystem.update(tank.addFuel(accepted)));
+    await _persist();
+    showToast('Stok bahan bakar bertambah ' + accepted.toStringAsFixed(0) + ' liter.');
+  }
+
+  Future<void> refuelVehicleFromTank(String vehicleId) async {
+    final c = _company;
+    if (c == null) throw StateError('Perusahaan belum didirikan.');
+    final index = _vehicles.indexWhere((v) => v.vehicleId == vehicleId);
+    if (index < 0) throw ArgumentError('Kendaraan tidak ditemukan.');
+    final vehicle = _vehicles[index];
+    if (vehicle.status == VehicleStatus.enRoute) throw StateError('Armada yang sedang bertugas tidak bisa diisi ulang.');
+    if (vehicle.mode == TransportMode.sea) throw StateError('Kapal menggunakan bunker fuel dan tidak memakai tangki solar atau avtur markas.');
+    final type = vehicle.mode == TransportMode.air ? FuelType.jetFuel : FuelType.diesel;
+    final tank = c.fuelSystem.tank(type);
+    if (!tank.isBuilt) throw StateError('Tangki bahan bakar belum dibangun.');
+    final needed = (vehicle.specifications.fuelCapacityLiters - vehicle.fuel).clamp(0.0, double.infinity).toDouble();
+    if (needed <= 0) throw StateError('Tangki kendaraan sudah penuh.');
+    if (tank.storedLiters < needed) throw StateError('Stok tangki markas tidak mencukupi.');
+    _vehicles[index] = vehicle.copyWith(fuel: vehicle.specifications.fuelCapacityLiters);
+    _company = c.copyWith(fuelSystem: c.fuelSystem.update(tank.consume(needed)));
+    await _persist();
+    showToast('Armada berhasil diisi dari tangki markas.');
+  }
+
+  Future<void> upgradeDepot() async {
+    final c = _company;
+    if (c == null) throw StateError('Perusahaan belum didirikan.');
+    if (c.depotLevel >= 5) throw StateError('Depo darat sudah mencapai Tingkat 5.');
+    final cost = 90000.0 * c.depotLevel;
+    if (c.balance < cost) throw StateError('Saldo tidak cukup untuk upgrade depo.');
+    _company = c.copyWith(balance: c.balance - cost, depotLevel: c.depotLevel + 1);
+    await _persist();
+    showToast('Depo darat naik ke Tingkat ${c.depotLevel + 1}.');
+  }
+
+  Future<void> buildTerminal(String terminal) async {
+    final c = _company;
+    if (c == null) throw StateError('Perusahaan belum didirikan.');
+    final config = switch (terminal) {
+      'river' => (level: 12, cost: 600000.0, built: c.riverTerminalBuilt),
+      'airport' => (level: 20, cost: 2250000.0, built: c.airportBranchBuilt),
+      'seaport' => (level: 30, cost: 9000000.0, built: c.seaPortBuilt),
+      _ => throw ArgumentError('Terminal tidak dikenal.'),
+    };
+    if (c.level < config.level) throw StateError('Terminal ini terbuka pada level ${config.level}.');
+    if (config.built) throw StateError('Terminal sudah dibangun.');
+    if (c.balance < config.cost) throw StateError('Saldo tidak cukup untuk investasi terminal.');
+    _company = switch (terminal) {
+      'river' => c.copyWith(balance: c.balance - config.cost, riverTerminalBuilt: true),
+      'airport' => c.copyWith(balance: c.balance - config.cost, airportBranchBuilt: true),
+      'seaport' => c.copyWith(balance: c.balance - config.cost, seaPortBuilt: true),
+      _ => c,
+    };
+    await _persist();
+    await refreshContracts();
+    showToast('Terminal baru berhasil dibangun.');
+  }
+
+  Future<void> upgradeResearch(ResearchCategory category) async {
+    final c = _company;
+    if (c == null) throw StateError('Perusahaan belum didirikan.');
+    final key = category.name;
+    final current = c.researchLevel(key);
+    if (current >= ResearchRules.maxLevel) throw StateError('Riset sudah mencapai level maksimum.');
+    final cost = ResearchRules.upgradeCost(category, current);
+    if (c.balance < cost) throw StateError('Saldo perusahaan tidak mencukupi.');
+    final levels = Map<String,int>.of(c.researchLevels)..[key] = current + 1;
+    _company = c.copyWith(balance: c.balance - cost, researchLevels: levels);
+    await _persist();
+    showToast('${ResearchDefinition.byCategory(category).title} naik ke level ${current + 1}.');
+  }
+
+  void _applyGoalProgress(int completedCount) {
+    final c = _company;
+    if (c == null || completedCount <= 0) return;
+    final now = DateTime.now().toUtc();
+    final dayStart = DateTime.utc(now.year, now.month, now.day);
+    final monday = dayStart.subtract(Duration(days: dayStart.weekday - 1));
+    var dailyStart = c.dailyGoalStartedAtUtc ?? dayStart;
+    var weeklyStart = c.weeklyGoalStartedAtUtc ?? monday;
+    var daily = c.dailyDeliveries;
+    var weekly = c.weeklyDeliveries;
+    if (now.difference(dailyStart).inHours >= 24 || dailyStart.isAfter(now)) { dailyStart = dayStart; daily = 0; }
+    if (now.difference(weeklyStart).inDays >= 7 || weeklyStart.isAfter(now)) { weeklyStart = monday; weekly = 0; }
+    final oldDaily = daily, oldWeekly = weekly;
+    daily = (daily + completedCount).clamp(0, 3).toInt();
+    weekly = (weekly + completedCount).clamp(0, 20).toInt();
+    var updated = c.copyWith(dailyGoalStartedAtUtc: dailyStart, weeklyGoalStartedAtUtc: weeklyStart, dailyDeliveries: daily, weeklyDeliveries: weekly);
+    var reward = 0.0;
+    final bonusXp = (oldDaily < 3 && daily >= 3 ? 80 : 0) + (oldWeekly < 20 && weekly >= 20 ? 600 : 0);
+    if (oldDaily < 3 && daily >= 3) reward += 2500;
+    if (oldWeekly < 20 && weekly >= 20) reward += 25000;
+    var xp = updated.xp + bonusXp, level = updated.level;
+    while (xp >= level * 500) { xp -= level * 500; level++; }
+    if (reward > 0 || bonusXp > 0) {
+      updated = updated.copyWith(balance: updated.balance + reward, totalRevenue: updated.totalRevenue + reward, xp: xp, level: level);
+      _toastMessage = 'Target tercapai! Bonus ${GameFormatters.currency(reward)} dan $bonusXp XP.';
+    }
+    _company = updated;
   }
 
   Future<void> refreshContracts() async {
@@ -264,6 +415,19 @@ class AppState extends ChangeNotifier {
 
   void _onTick() {
     if (_company == null) return;
+    final goalCompany = _company!;
+    final nowUtc = DateTime.now().toUtc();
+    final dayStart = DateTime.utc(nowUtc.year, nowUtc.month, nowUtc.day);
+    final monday = dayStart.subtract(Duration(days: dayStart.weekday - 1));
+    final dailyStart = goalCompany.dailyGoalStartedAtUtc;
+    final weeklyStart = goalCompany.weeklyGoalStartedAtUtc;
+    final resetDaily = dailyStart == null || nowUtc.difference(dailyStart).inHours >= 24;
+    final resetWeekly = weeklyStart == null || nowUtc.difference(weeklyStart).inDays >= 7;
+    if (resetDaily || resetWeekly) {
+      _company = goalCompany.copyWith(dailyGoalStartedAtUtc: resetDaily ? dayStart : dailyStart, weeklyGoalStartedAtUtc: resetWeekly ? monday : weeklyStart, dailyDeliveries: resetDaily ? 0 : goalCompany.dailyDeliveries, weeklyDeliveries: resetWeekly ? 0 : goalCompany.weeklyDeliveries);
+      unawaited(_persist());
+      notifyListeners();
+    }
     final beforeCount = _contracts
         .where((contract) => contract.status == ContractStatus.inTransit)
         .length;
@@ -278,6 +442,7 @@ class AppState extends ChangeNotifier {
       _vehicles = resolution.vehicles;
       _contracts = resolution.contracts;
       final completed = resolution.completedContractIds.length;
+      _applyGoalProgress(completed);
       _toastMessage = '$completed pengiriman selesai. Saldo dan XP bertambah.';
       unawaited(_persist());
       notifyListeners();
@@ -298,6 +463,7 @@ class AppState extends ChangeNotifier {
       _company = resolution.company;
       _vehicles = resolution.vehicles;
       _contracts = resolution.contracts;
+      _applyGoalProgress(resolution.completedContractIds.length);
       unawaited(_persist());
     }
   }

@@ -24,8 +24,8 @@ class ContractService {
         final d = CityCatalog.distanceBetween(a, b);
         if (d < 25) continue;
         roadRoutes.add((a, b, d));
-        if (a.hasPort && b.hasPort) seaRoutes.add((a, b, d * 1.18));
-        if (a.hasAirport && b.hasAirport) airRoutes.add((a, b, d * 1.08));
+        if (company.seaPortBuilt && a.hasPort && b.hasPort) seaRoutes.add((a, b, d * 1.18));
+        if (company.airportBranchBuilt && a.hasAirport && b.hasAirport) airRoutes.add((a, b, d * 1.08));
       }
     }
     final pool = <({TransportMode mode, (CityNode, CityNode, double) route})>[];

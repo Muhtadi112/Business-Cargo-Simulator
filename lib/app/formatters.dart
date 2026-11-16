@@ -6,14 +6,38 @@ abstract final class AppFormatters {
     symbol: r'$',
     decimalDigits: 0,
   );
-
   static final NumberFormat _number = NumberFormat('#,##0', 'en_US');
   static final NumberFormat _decimal = NumberFormat('#,##0.0', 'en_US');
 
-  static String money(num value) => _usd.format(value);
+  static String money(num value) {
+    final absolute = value.abs();
+    String compact(double amount, int decimals) {
+      var result = amount.toStringAsFixed(decimals);
+      if (result.contains('.')) {
+        while (result.endsWith('0')) {
+          result = result.substring(0, result.length - 1);
+        }
+        if (result.endsWith('.')) {
+          result = result.substring(0, result.length - 1);
+        }
+      }
+      return result;
+    }
+
+    final prefix = value < 0 ? '-' : '';
+    if (absolute >= 1000000000) {
+      return prefix + r'$' + compact(absolute / 1000000000, 2) + 'B';
+    }
+    if (absolute >= 1000000) {
+      return prefix + r'$' + compact(absolute / 1000000, 2) + 'M';
+    }
+    if (absolute >= 1000) {
+      return prefix + r'$' + compact(absolute / 1000, 1) + 'K';
+    }
+    return _usd.format(value);
+  }
 
   static String number(num value) => _number.format(value);
-
   static String distance(num kilometers) => '${_decimal.format(kilometers)} km';
 
   static String weight(num kilograms) {

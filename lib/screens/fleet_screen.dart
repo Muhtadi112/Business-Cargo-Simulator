@@ -19,7 +19,7 @@ class _FleetScreenState extends State<FleetScreen> {
   return ListView(padding:const EdgeInsets.all(13),children:[
    Row(children:[Expanded(child:FilledButton(onPressed:()=>setState(()=>tab=0),child:Text('Armada • ${all.length}'))),const SizedBox(width:7),Expanded(child:OutlinedButton(onPressed:()=>setState(()=>tab=1),child:const Text('Trailer • 0')))]),
    const SizedBox(height:10),FilledButton.icon(onPressed:()=>_dealership(context,s),icon:const Icon(Icons.add),label:const Text('Beli Armada')),
-   const SizedBox(height:10),GridView.count(crossAxisCount:2,shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),childAspectRatio:2.6,mainAxisSpacing:7,crossAxisSpacing:7,children:[_metric('Total Armada','${all.length}/12'),_metric('Menganggur',idle.toString()),_metric('Dalam perjalanan',s.activeVehicles.toString()),_metric('Perlu perhatian',alert.toString())]),
+   const SizedBox(height:10),GridView.count(crossAxisCount:2,shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),childAspectRatio:2.6,mainAxisSpacing:7,crossAxisSpacing:7,children:[_metric('Total Armada','${all.length}/${s.fleetSlots}'),_metric('Menganggur',idle.toString()),_metric('Dalam perjalanan',s.activeVehicles.toString()),_metric('Perlu perhatian',alert.toString())]),
    const SizedBox(height:12),
    if(tab==0)...[
     Wrap(spacing:6,runSpacing:6,children:[_filter('Semua',0),_filter('Darat 🚛',1),_filter('Laut 🚢',2),_filter('Udara ✈️',3)]),

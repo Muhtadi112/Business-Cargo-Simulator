@@ -22,7 +22,7 @@ class FleetService {
   FleetService({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
   final Uuid _uuid;
 
-  FleetAssignment assignContract(Vehicle vehicle, CargoContract contract, {DateTime? nowUtc}) {
+  FleetAssignment assignContract(Vehicle vehicle, CargoContract contract, {DateTime? nowUtc, int fuelEfficiencyLevel = 0, int loadingCrewLevel = 0, int dispatchSoftwareLevel = 0}) {
     if (contract.status != ContractStatus.available) throw StateError('Kontrak ini sudah tidak tersedia.');
     if (!vehicle.canDrive) throw StateError('Kendaraan tidak siap berangkat.');
     if (vehicle.mode != contract.transportMode) throw StateError('Moda tidak cocok: kontrak ${contract.transportMode.name}, armada ${vehicle.mode.name}.');
@@ -35,15 +35,18 @@ class FleetService {
       throw StateError('Terminal asal dan tujuan tidak sesuai dengan moda transportasi.');
     }
     if (!vehicle.canCarry(contract.cargoWeightKg)) throw StateError('Kapasitas kendaraan tidak mencukupi.');
-    final fuelNeeded = requiredFuelForDistance(vehicle, contract.distanceKm);
+    final fuelNeeded = requiredFuelForDistance(vehicle, contract.distanceKm) * (1 - fuelEfficiencyLevel.clamp(0, 10) * 0.025);
     if (vehicle.fuel + 0.0001 < fuelNeeded) throw StateError('Bahan bakar tidak cukup. Dibutuhkan ${fuelNeeded.toStringAsFixed(1)} L.');
     final departure = (nowUtc ?? DateTime.now()).toUtc();
     final speed = max(1.0, vehicle.effectiveMaxSpeed);
-    final travelDuration = Duration(microseconds: (contract.distanceKm / speed * Duration.microsecondsPerHour).round());
+    final travelHours = contract.distanceKm / speed;
+    final handlingMinutes = 20 * (1 - loadingCrewLevel.clamp(0, 10) * 0.04);
+    final dispatchMinutes = 5 * (1 - dispatchSoftwareLevel.clamp(0, 10) * 0.04);
+    final travelDuration = Duration(microseconds: (travelHours * Duration.microsecondsPerHour).round()) + Duration(seconds: ((handlingMinutes + dispatchMinutes) * 60).round());
     final arrival = departure.add(travelDuration);
     return FleetAssignment(
       vehicle: vehicle.copyWith(status: VehicleStatus.enRoute, assignedContractId: contract.contractId, departureTimeUtc: departure, arrivalTimeUtc: arrival),
-      contract: contract.copyWith(status: ContractStatus.inTransit, assignedVehicleId: vehicle.vehicleId, departureTimeUtc: departure, arrivalTimeUtc: arrival),
+      contract: contract.copyWith(status: ContractStatus.inTransit, assignedVehicleId: vehicle.vehicleId, departureTimeUtc: departure, arrivalTimeUtc: arrival, reward: contract.reward * (contract.cargoType == CargoType.food ? 1.25 : 1.0)),
     );
   }
 
@@ -60,14 +63,15 @@ class FleetService {
       final vehicleIndex = updatedVehicles.indexWhere((v) => v.vehicleId == contract.assignedVehicleId);
       if (vehicleIndex < 0) continue;
       final vehicle = updatedVehicles[vehicleIndex];
-      final fuelUsed = requiredFuelForDistance(vehicle, contract.distanceKm);
-      final wear = min(35.0, max(1.0, contract.distanceKm / 180.0 + vehicle.specifications.fuelConsumptionPer100Km / 18));
+      final fuelUsed = (requiredFuelForDistance(vehicle, contract.distanceKm) * (1 - company.researchLevel('efficientEngines').clamp(0, 10) * 0.025)).toDouble();
+      final wear = (min(35.0, max(1.0, contract.distanceKm / 180.0 + vehicle.specifications.fuelConsumptionPer100Km / 18)) * (1 - company.researchLevel('fleetEngineering').clamp(0, 10) * 0.03)).toDouble();
       updatedVehicles[vehicleIndex] = vehicle.copyWith(fuel: max(0.0, vehicle.fuel - fuelUsed), condition: max(0.0, vehicle.condition - wear), status: VehicleStatus.idle, clearAssignedContract: true, clearDepartureTime: true, clearArrivalTime: true);
       updatedContracts[i] = contract.copyWith(status: ContractStatus.completed);
       var xp = updatedCompany.xp + contract.rewardXp;
       var level = updatedCompany.level;
       while (xp >= level * 500) { xp -= level * 500; level++; }
-      updatedCompany = updatedCompany.copyWith(balance: updatedCompany.balance + contract.reward, totalRevenue: updatedCompany.totalRevenue + contract.reward, xp: xp, level: level, reputation: min(100, updatedCompany.reputation + 1), completedContracts: updatedCompany.completedContracts + 1);
+      final reward = (contract.reward * (1 + updatedCompany.researchLevel('keyClients').clamp(0, 10) * 0.02)).toDouble();
+      updatedCompany = updatedCompany.copyWith(balance: updatedCompany.balance + reward, totalRevenue: updatedCompany.totalRevenue + reward, xp: xp, level: level, reputation: min(100, updatedCompany.reputation + 1), reputationScore: updatedCompany.reputationScore + 25, completedContracts: updatedCompany.completedContracts + 1);
       completedIds.add(contract.contractId);
     }
     return FleetResolution(company: updatedCompany, vehicles: updatedVehicles, contracts: updatedContracts, completedContractIds: completedIds);
