@@ -146,7 +146,7 @@ class AppState extends ChangeNotifier {
     _contracts = <CargoContract>[];
     _selectedTab = 0;
     await _saveService.resetGame();
-    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
     showToast('Progres lokal berhasil direset.');
   }
 
