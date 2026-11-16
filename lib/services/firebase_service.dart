@@ -1,5 +1,3 @@
-import 'dart:async';
-
 class LocalChatMessage {
   const LocalChatMessage({
     required this.id,
