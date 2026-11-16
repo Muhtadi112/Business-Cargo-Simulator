@@ -1,85 +1,40 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'app/app_shell.dart';
+import 'app/app_state.dart';
+import 'screens/create_company_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
   runApp(const BusinessCargoSimulatorApp());
 }
 
 class BusinessCargoSimulatorApp extends StatelessWidget {
   const BusinessCargoSimulatorApp({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context) => ChangeNotifierProvider(
+    create: (_) => AppState()..initialize(),
+    child: MaterialApp(
       title: 'Business Cargo Simulator',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      home: const _FoundationScreen(),
-    );
-  }
+      theme: AppTheme.darkTheme,
+      home: const _AppGate(),
+    ),
+  );
 }
 
-class _FoundationScreen extends StatelessWidget {
-  const _FoundationScreen();
-
+class _AppGate extends StatelessWidget {
+  const _AppGate();
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 76,
-                  height: 76,
-                  decoration: BoxDecoration(
-                    color: AppColors.emerald.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppColors.emerald),
-                  ),
-                  child: const Icon(
-                    Icons.local_shipping_rounded,
-                    color: AppColors.emerald,
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'BUSINESS CARGO SIMULATOR',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'GLOBAL LOGISTICS & FLEET MANAGEMENT TYCOON',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                const CircularProgressIndicator(color: AppColors.emerald),
-                const SizedBox(height: 18),
-                const Text(
-                  'ADI • FOUNDATION BUILD',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Consumer<AppState>(
+    builder: (context, state, _) {
+      if (!state.isInitialized) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.emerald)));
+      }
+      return state.hasCompany ? const AppShell() : const CreateCompanyScreen();
+    },
+  );
 }
